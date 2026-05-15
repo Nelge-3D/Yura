@@ -359,7 +359,7 @@ export default function ChatWindow() {
         {/* Indicateur émotion */}
         {prevEtat !== null && etat !== "neutre" && (
           <div
-            className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
+            className="chat-header-emotion flex items-center gap-1 px-2 py-1 rounded-full text-xs"
             style={{
               background: `${theme.accent}25`,
               color: theme.textSecondary,
@@ -423,7 +423,7 @@ export default function ChatWindow() {
           )}
         </button>
 
-        <div className="flex items-center gap-1.5">
+        <div className="chat-status-label flex items-center gap-1.5">
           <div
             className="w-2 h-2 rounded-full animate-pulse"
             style={{ background: theme.dotColor, transition: "background-color 2s ease" }}
@@ -542,7 +542,7 @@ export default function ChatWindow() {
               {msg.role === "assistant" && (
                 <YuraAvatar size={28} animate={false} />
               )}
-              <div className="flex flex-col gap-1" style={{ maxWidth: "78%" }}>
+              <div className="chat-bubble flex flex-col gap-1">
                 <div
                   style={{
                     padding: "12px 16px",
@@ -708,7 +708,7 @@ export default function ChatWindow() {
         </div>
 
         <p
-          className="text-xs text-center mt-2"
+          className="chat-disclaimer text-xs text-center mt-2"
           style={{ color: theme.textMuted }}
         >
           Conversation privée · Aucune donnée nominative collectée

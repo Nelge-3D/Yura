@@ -9,32 +9,83 @@ html { scroll-behavior: smooth; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
 
 /* Hauteur viewport mobile (évite le saut clavier iOS) */
-.h-screen-mobile {
-  height: 100dvh;
-}
+.h-screen-mobile { height: 100dvh; }
 
 /* Safe area pour iPhone avec notch */
-.pb-safe {
-  padding-bottom: max(16px, env(safe-area-inset-bottom));
-}
+.pb-safe { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
 
-/* Animation d'entrée des bulles */
+/* Animations */
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
-/* Pulse micro */
 @keyframes micPulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
   50%       { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
 }
-
-/* Spin lent avatar */
 @keyframes spin-slow {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
-.animate-spin-slow {
-  animation: spin-slow 8s linear infinite;
+.animate-spin-slow { animation: spin-slow 8s linear infinite; }
+
+/* ═══════════════════════════════════════════════
+   RESPONSIVE — Landing page
+   ═══════════════════════════════════════════════ */
+
+/* Hero : padding réduit sur mobile */
+.hero-grid { padding: 56px 20px 44px !important; }
+@media (min-width: 640px)  { .hero-grid { padding: 72px 32px 56px !important; } }
+@media (min-width: 1024px) { .hero-grid { padding: 80px 48px 80px !important; } }
+
+/* Grille 2 colonnes dès 768px (tablette) */
+@media (min-width: 768px) {
+  .lg-grid-2col { grid-template-columns: 1fr 1fr !important; }
 }
+
+/* CTA buttons : empilés pleine largeur sur mobile */
+@media (max-width: 479px) {
+  .hero-ctas { flex-direction: column !important; align-items: stretch !important; }
+  .hero-ctas > * { width: 100% !important; justify-content: center !important; }
+  .pwa-install-btn { width: 100% !important; display: block !important; }
+  .pwa-install-btn > div { position: static !important; }
+  .pwa-install-btn button { width: 100% !important; justify-content: center !important; }
+}
+
+/* ChatDemo caché sur mobile */
+@media (max-width: 639px) { .hero-demo-col { display: none !important; } }
+
+/* Stats : 2 colonnes sur mobile, supprimer les bordures verticales */
+@media (max-width: 599px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .stats-item { border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.07); }
+  .stats-item:nth-child(odd) { border-right: 1px solid rgba(255,255,255,0.07) !important; }
+  .stats-item:last-child, .stats-item:nth-last-child(2):nth-child(odd) { border-bottom: none !important; }
+}
+
+/* Sections padding */
+@media (max-width: 639px) {
+  .steps-section  { padding: 64px 20px !important; }
+  .pillars-section { padding: 64px 20px !important; }
+  .cta-section    { padding: 72px 20px !important; }
+}
+
+/* ═══════════════════════════════════════════════
+   RESPONSIVE — Chat
+   ═══════════════════════════════════════════════ */
+
+/* Header : cacher le label "En ligne" sur très petit écran */
+@media (max-width: 420px) {
+  .chat-status-label { display: none !important; }
+  .chat-header-emotion { display: none !important; }
+}
+
+/* Disclaimer bas de chat : caché sur mobile */
+@media (max-width: 479px) {
+  .chat-disclaimer { display: none !important; }
+}
+
+/* Bulles : max-width adaptatif */
+.chat-bubble { max-width: 82%; }
+@media (min-width: 640px)  { .chat-bubble { max-width: 72%; } }
+@media (min-width: 1024px) { .chat-bubble { max-width: 62%; } }

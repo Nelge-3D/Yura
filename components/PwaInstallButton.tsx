@@ -63,7 +63,7 @@ export default function PwaInstallButton() {
   const steps = platform === "ios" ? STEPS_IOS : STEPS_ANDROID;
 
   return (
-    <div style={{ position: "relative", display: "inline-block" }}>
+    <div className="pwa-install-btn" style={{ position: "relative", display: "inline-block" }}>
       <button
         onClick={handleInstall}
         style={{

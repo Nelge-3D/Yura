@@ -344,7 +344,7 @@ export default function HomeClient() {
         <div style={{ position: "absolute", top: "40%", left: "30%", width: 600, height: 600, background: "radial-gradient(circle, rgba(74,124,89,0.15) 0%, transparent 70%)", transform: "translate(-50%,-50%)", zIndex: 0, pointerEvents: "none" }} />
 
         <div style={{ position: "relative", zIndex: 1, maxWidth: 1100, margin: "0 auto", padding: "80px 24px", width: "100%", display: "grid", gridTemplateColumns: "1fr", gap: 48, alignItems: "center" }}
-          className="lg-grid-2col">
+          className="lg-grid-2col hero-grid">
 
           {/* Colonne gauche */}
           <div style={{ animation: "heroFadeIn 0.9s ease-out" }}>
@@ -393,7 +393,7 @@ export default function HomeClient() {
             </div>
 
             {/* CTAs */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+            <div className="hero-ctas" style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
               <Link
                 href="/chat"
                 style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#4a7c59", color: "#fff", textDecoration: "none", borderRadius: 16, padding: "14px 28px", fontSize: 15, fontWeight: 600, transition: "all 0.2s", boxShadow: "0 0 24px rgba(74,124,89,0.4)", animation: "ctaPulse 3s ease-in-out infinite" }}
@@ -412,7 +412,7 @@ export default function HomeClient() {
           </div>
 
           {/* Colonne droite — Chat démo */}
-          <div style={{ display: "flex", justifyContent: "center", animation: "heroFadeIn 0.9s ease-out 0.3s both" }}>
+          <div className="hero-demo-col" style={{ display: "flex", justifyContent: "center", animation: "heroFadeIn 0.9s ease-out 0.3s both" }}>
             <ChatDemo />
           </div>
         </div>
@@ -435,10 +435,10 @@ export default function HomeClient() {
 
       {/* ══ STATS ══ */}
       <section style={{ background: "#1a2e1a", padding: "48px 24px" }}>
-        <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 2 }}>
+        <div className="stats-grid" style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 2 }}>
           {stats.map((s, i) => (
             <Reveal key={i} delay={i * 100}>
-              <div style={{ textAlign: "center", padding: "24px 16px", borderRight: i < stats.length - 1 ? "1px solid rgba(255,255,255,0.07)" : "none" }}>
+              <div className="stats-item" style={{ textAlign: "center", padding: "24px 16px", borderRight: i < stats.length - 1 ? "1px solid rgba(255,255,255,0.07)" : "none" }}>
                 <div style={{ fontFamily: "Georgia,serif", fontSize: "clamp(2rem,5vw,3rem)", color: "#7fb89a", fontWeight: 300, lineHeight: 1 }}>
                   <Counter target={s.value} suffix={s.suffix} />
                 </div>
@@ -482,7 +482,7 @@ export default function HomeClient() {
       </section>
 
       {/* ══ STEPS ══ */}
-      <section id="comment" style={{ maxWidth: 1100, margin: "0 auto", padding: "96px 24px" }}>
+      <section id="comment" className="steps-section" style={{ maxWidth: 1100, margin: "0 auto", padding: "96px 24px" }}>
         <Reveal>
           <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#4a7c59", marginBottom: 12 }}>Le parcours</p>
           <h2 style={{ fontFamily: "Georgia,serif", fontSize: "clamp(1.8rem,4vw,2.8rem)", color: "#1a2e1a", marginBottom: 56, lineHeight: 1.2 }}>
@@ -523,7 +523,7 @@ export default function HomeClient() {
       </section>
 
       {/* ══ PILLARS ══ */}
-      <section style={{ background: "#fff", padding: "96px 24px" }}>
+      <section className="pillars-section" style={{ background: "#fff", padding: "96px 24px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <Reveal>
             <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#4a7c59", marginBottom: 12 }}>Fondements</p>
@@ -558,7 +558,7 @@ export default function HomeClient() {
       </section>
 
       {/* ══ CTA FINAL ══ */}
-      <section style={{ background: "#1a2e1a", padding: "96px 24px", textAlign: "center", position: "relative", overflow: "hidden" }}>
+      <section className="cta-section" style={{ background: "#1a2e1a", padding: "96px 24px", textAlign: "center", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: "50%", left: "50%", width: 500, height: 500, background: "radial-gradient(circle, rgba(74,124,89,0.2) 0%, transparent 70%)", transform: "translate(-50%,-50%)", pointerEvents: "none" }} />
         <Reveal>
           <div style={{ position: "relative", maxWidth: 560, margin: "0 auto" }}>
@@ -630,9 +630,6 @@ export default function HomeClient() {
         @keyframes kenteSlide {
           from { transform: translate(0, 0); }
           to   { transform: translate(48px, 48px); }
-        }
-        @media (min-width: 900px) {
-          .lg-grid-2col { grid-template-columns: 1fr 1fr !important; }
         }
         a:hover { opacity: 0.88; }
       `}</style>
