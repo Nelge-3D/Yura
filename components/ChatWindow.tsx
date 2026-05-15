@@ -142,13 +142,24 @@ export default function ChatWindow() {
       utterance.rate = 0.9;
       utterance.pitch = 1.1;
       utterance.volume = 1;
-      const voices = window.speechSynthesis.getVoices();
-      const frVoice = voices.find((v) => v.lang.startsWith("fr")) ?? null;
-      if (frVoice) utterance.voice = frVoice;
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
-      synth.speak(utterance);
+      const assignVoiceAndSpeak = () => {
+        const voices = synth.getVoices();
+        const frVoice = voices.find((v) => v.lang.startsWith("fr")) ?? null;
+        if (frVoice) utterance.voice = frVoice;
+        utterance.onstart = () => setIsSpeaking(true);
+        utterance.onend = () => setIsSpeaking(false);
+        utterance.onerror = () => setIsSpeaking(false);
+        synth.speak(utterance);
+      };
+
+      // iOS Safari charge les voix de façon asynchrone
+      if (synth.getVoices().length > 0) {
+        assignVoiceAndSpeak();
+      } else {
+        synth.addEventListener("voiceschanged", assignVoiceAndSpeak, { once: true });
+        // Fallback si voiceschanged ne se déclenche pas (certains navigateurs)
+        setTimeout(assignVoiceAndSpeak, 200);
+      }
     },
     [voiceEnabled]
   );
