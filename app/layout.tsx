@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Serif_Display, Plus_Jakarta_Sans } from "next/font/google";
+import SwRegister from "@/components/SwRegister";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -19,6 +20,20 @@ export const metadata: Metadata = {
   title: "YURA — L'IA à l'écoute",
   description:
     "IA conversationnelle à but thérapeutique, nourrie de la culture gabonaise. Un pont entre toi et les professionnels de santé mentale.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "YURA",
+  },
+  formatDetection: { telephone: false },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#2D6A4F",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -28,7 +43,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" className={`${jakarta.variable} ${serif.variable}`}>
-      <body className="font-sans antialiased">{children}</body>
+      <head>
+        <link rel="apple-touch-icon" href="/icons/yura-icon.svg" />
+      </head>
+      <body className="font-sans antialiased">
+        {children}
+        <SwRegister />
+      </body>
     </html>
   );
 }
