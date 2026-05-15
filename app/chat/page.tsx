@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function ChatPage() {
   return (
-    <main className="h-screen flex flex-col bg-[#1a2e1a]">
+    <main className="h-screen-mobile flex flex-col" style={{ background: "#0D1F1A" }}>
       <ChatWindow />
     </main>
   );
