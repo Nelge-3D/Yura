@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { ShaderAnimation } from "@/components/ui/shader-animation";
+import PwaInstallButton from "@/components/PwaInstallButton";
 
 // ─── Chat démo ───────────────────────────────────────────────────────────────
 
@@ -406,6 +407,7 @@ export default function HomeClient() {
               >
                 Comment ça marche →
               </a>
+              <PwaInstallButton />
             </div>
           </div>
 
