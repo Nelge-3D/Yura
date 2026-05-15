@@ -2,57 +2,65 @@
 
 import { useEffect, useState } from "react";
 
-type Platform = "android" | "ios" | "desktop" | "installed" | null;
+type Platform = "android" | "ios" | "desktop" | null;
+type DeferredPrompt = Event & { prompt: () => void; userChoice: Promise<{ outcome: string }> };
+
+const STEPS_IOS = [
+  { num: "1", text: "Appuie sur le bouton Partager", icon: "□↑" },
+  { num: "2", text: 'Puis "Sur l\'écran d\'accueil"', icon: "＋" },
+  { num: "3", text: 'Appuie sur "Ajouter"', icon: "✓" },
+];
+
+const STEPS_ANDROID = [
+  { num: "1", text: "Ouvre le menu Chrome", icon: "⋮" },
+  { num: "2", text: '"Ajouter à l\'écran d\'accueil"', icon: "＋" },
+  { num: "3", text: 'Appuie sur "Ajouter"', icon: "✓" },
+];
 
 export default function PwaInstallButton() {
   const [platform, setPlatform] = useState<Platform>(null);
-  const [deferredPrompt, setDeferredPrompt] = useState<Event & { prompt: () => void; userChoice: Promise<{ outcome: string }> } | null>(null);
-  const [showIosHint, setShowIosHint] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<DeferredPrompt | null>(null);
+  const [showHint, setShowHint] = useState(false);
   const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
-    // Déjà installée en mode standalone
     if (window.matchMedia("(display-mode: standalone)").matches) {
       setInstalled(true);
       return;
     }
 
     const ua = navigator.userAgent;
-    const isIOS = /iPad|iPhone|iPod/.test(ua);
-    const isAndroid = /Android/.test(ua);
+    if (/iPad|iPhone|iPod/.test(ua)) setPlatform("ios");
+    else if (/Android/.test(ua)) setPlatform("android");
+    else setPlatform("desktop");
 
-    if (isIOS) {
-      setPlatform("ios");
-    } else if (isAndroid) {
-      setPlatform("android");
-    } else {
-      setPlatform("desktop");
-    }
-
-    // Capture le prompt Android/Chrome/Desktop
     const handler = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e as Event & { prompt: () => void; userChoice: Promise<{ outcome: string }> });
+      setDeferredPrompt(e as DeferredPrompt);
     };
     window.addEventListener("beforeinstallprompt", handler);
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   const handleInstall = async () => {
-    if (platform === "ios") {
-      setShowIosHint((v) => !v);
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === "accepted") setInstalled(true);
+      setDeferredPrompt(null);
       return;
     }
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") setInstalled(true);
-    setDeferredPrompt(null);
+    // Fallback : show manual instructions for iOS and Android
+    setShowHint((v) => !v);
   };
 
-  // App déjà installée ou plateforme inconnue sans prompt
+  // Hide if already installed, unknown platform, or desktop without native prompt
   if (installed || platform === null) return null;
-  if ((platform === "android" || platform === "desktop") && !deferredPrompt) return null;
+  if (platform === "desktop" && !deferredPrompt) return null;
+
+  const isMobile = platform === "ios" || platform === "android";
+  const label = platform === "ios" ? "Installer sur iPhone" : "Installer l'application";
+  const steps = platform === "ios" ? STEPS_IOS : STEPS_ANDROID;
 
   return (
     <div style={{ position: "relative", display: "inline-block" }}>
@@ -83,16 +91,12 @@ export default function PwaInstallButton() {
           (e.currentTarget as HTMLElement).style.borderColor = "rgba(127,184,154,0.45)";
         }}
       >
-        {/* Icône téléchargement */}
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7fb89a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
           <polyline points="7 10 12 15 17 10"/>
           <line x1="12" y1="15" x2="12" y2="3"/>
         </svg>
-        <span>
-          {platform === "ios" ? "Installer sur iPhone" : "Installer l'application"}
-        </span>
-        {/* Badge "Gratuit" */}
+        <span>{label}</span>
         <span style={{
           background: "rgba(127,184,154,0.2)",
           border: "1px solid rgba(127,184,154,0.3)",
@@ -106,8 +110,8 @@ export default function PwaInstallButton() {
         </span>
       </button>
 
-      {/* Tooltip iOS */}
-      {showIosHint && platform === "ios" && (
+      {/* Tooltip instructions (iOS always, Android when no native prompt) */}
+      {showHint && isMobile && (
         <div style={{
           position: "absolute",
           bottom: "calc(100% + 12px)",
@@ -117,11 +121,10 @@ export default function PwaInstallButton() {
           border: "1px solid rgba(127,184,154,0.35)",
           borderRadius: 14,
           padding: "14px 18px",
-          width: 260,
+          width: 270,
           zIndex: 50,
           boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
         }}>
-          {/* Flèche */}
           <div style={{
             position: "absolute",
             bottom: -7,
@@ -135,14 +138,10 @@ export default function PwaInstallButton() {
             borderLeft: "none",
           }} />
           <p style={{ color: "#D8F3DC", fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
-            Installer sur iPhone
+            {label}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {[
-              { num: "1", text: 'Appuie sur le bouton Partager', icon: "□↑" },
-              { num: "2", text: '"Sur l\'écran d\'accueil"', icon: "＋" },
-              { num: "3", text: 'Appuie sur "Ajouter"', icon: "✓" },
-            ].map((step) => (
+            {steps.map((step) => (
               <div key={step.num} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{
                   width: 24, height: 24, borderRadius: "50%",
