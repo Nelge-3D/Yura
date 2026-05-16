@@ -34,9 +34,8 @@ export function detectCrisisLevel(message: string): CrisisLevel {
 
 export const CRISIS_CONTACTS = {
   gabon: {
-    name: "Centre Hospitalier Universitaire de Libreville",
+    name: "SAMU Gabon",
     phone: "1300",
-    description: "Urgences médicales et psychiatriques",
+    description: "Urgences médicales et psychiatriques · 24h/24",
   },
- 
 };

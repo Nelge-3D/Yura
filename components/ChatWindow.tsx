@@ -1,11 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { getUserName, setUserName, getOrCreateSessionId } from "@/lib/uuid";
+import { getUserName, setUserName, getOrCreateSessionId, clearSession } from "@/lib/uuid";
 import { CrisisLevel } from "@/lib/crisis";
 import { detectEmotion, extractEmotionFromYura, EtatEmotionnel } from "@/lib/emotionDetector";
-import { getTheme, ColorTheme } from "@/lib/colorThemes";
+import { getTheme, getLightTheme, ColorTheme } from "@/lib/colorThemes";
+import { logMood } from "@/lib/moodLog";
 import YuraAvatar from "@/components/YuraAvatar";
+import MoodJournal from "@/components/MoodJournal";
+import Onboarding from "@/components/Onboarding";
 
 const STORAGE_KEY_MESSAGES = "yura_messages";
 const STORAGE_KEY_EMOTION = "yura_emotion";
@@ -55,15 +58,27 @@ export default function ChatWindow() {
   const [showMoodPicker, setShowMoodPicker] = useState(false);
   const [crisisDismissed, setCrisisDismissed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showJournal, setShowJournal] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [shareToast, setShareToast] = useState(false);
+  const [lightMode, setLightMode] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
-  const theme: ColorTheme = getTheme(etat);
+  const theme: ColorTheme = lightMode ? getLightTheme(etat) : getTheme(etat);
 
   // Hydratation depuis localStorage
   useEffect(() => {
+    const onboarded = localStorage.getItem("yura_onboarded");
+    if (!onboarded) {
+      setShowOnboarding(true);
+    }
+    const savedLightMode = localStorage.getItem("yura_light_mode");
+    if (savedLightMode === "1") setLightMode(true);
+
     getOrCreateSessionId();
     const savedName = getUserName();
     if (savedName) {
@@ -128,8 +143,45 @@ export default function ChatWindow() {
       if (prev !== newEtat) setPrevEtat(prev);
       return newEtat;
     });
+    logMood(newEtat);
     if (newEtat === "crise") setCrisisDismissed(false);
   }, []);
+
+  const handleRestart = useCallback(() => {
+    if (!window.confirm("Effacer la conversation et recommencer ?")) return;
+    window.speechSynthesis?.cancel();
+    clearSession();
+    localStorage.removeItem(STORAGE_KEY_MESSAGES);
+    localStorage.removeItem(STORAGE_KEY_EMOTION);
+    setMessages([WELCOME_MESSAGE]);
+    setInput("");
+    setEtat("neutre");
+    setPrevEtat(null);
+    setUserNameState(null);
+    setShowNamePrompt(true);
+    setShowMoodPicker(true);
+    setCrisisDismissed(false);
+    setCrisisLevel("none");
+    setShowMenu(false);
+  }, []);
+
+  const handleShare = useCallback(async () => {
+    setShowMenu(false);
+    const lines = messages.map((m) => {
+      const who = m.role === "user" ? "Moi" : "YURA";
+      const time = formatTime(m.timestamp);
+      return `[${time}] ${who} : ${m.content}`;
+    });
+    const text = `Résumé de session YURA — ${new Date().toLocaleDateString("fr-FR")}\n\n${lines.join("\n\n")}`;
+
+    if (navigator.share) {
+      await navigator.share({ title: "Ma session YURA", text }).catch(() => null);
+    } else {
+      await navigator.clipboard.writeText(text).catch(() => null);
+      setShareToast(true);
+      setTimeout(() => setShareToast(false), 2500);
+    }
+  }, [messages]);
 
   const speakText = useCallback(
     (text: string) => {
@@ -316,7 +368,7 @@ export default function ChatWindow() {
                 marginTop: 2,
               }}
             >
-              📞 1300 — CHU Libreville · 24h/24
+              📞 1300 — SAMU Gabon · 24h/24
             </a>
           </div>
           <button
@@ -423,16 +475,113 @@ export default function ChatWindow() {
           )}
         </button>
 
-        <div className="chat-status-label flex items-center gap-1.5">
-          <div
-            className="w-2 h-2 rounded-full animate-pulse"
-            style={{ background: theme.dotColor, transition: "background-color 2s ease" }}
-          />
-          <span className="text-xs" style={{ color: theme.textMuted }}>
-            En ligne
-          </span>
+        {/* Bouton menu */}
+        <div style={{ position: "relative" }}>
+          <button
+            onClick={() => setShowMenu((v) => !v)}
+            title="Options"
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: showMenu ? `${theme.accent}40` : "rgba(255,255,255,0.05)",
+              color: theme.textMuted,
+              border: "none",
+              cursor: "pointer",
+              transition: "all 0.3s ease",
+              flexShrink: 0,
+              fontSize: 20,
+              fontWeight: 700,
+            }}
+          >
+            ⋯
+          </button>
+
+          {showMenu && (
+            <div
+              style={{
+                position: "absolute",
+                top: "calc(100% + 8px)",
+                right: 0,
+                background: theme.bgHeader,
+                border: `1px solid ${theme.accent}40`,
+                borderRadius: 16,
+                padding: 8,
+                minWidth: 200,
+                zIndex: 30,
+                boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+              }}
+            >
+              {[
+                { icon: "📊", label: "Journal d'humeur", action: () => { setShowJournal(true); setShowMenu(false); } },
+                { icon: "📤", label: "Partager la session", action: handleShare },
+                {
+                  icon: lightMode ? "🌙" : "☀️",
+                  label: lightMode ? "Mode sombre" : "Mode clair",
+                  action: () => {
+                    const next = !lightMode;
+                    setLightMode(next);
+                    localStorage.setItem("yura_light_mode", next ? "1" : "0");
+                    setShowMenu(false);
+                  },
+                },
+                { icon: "↺", label: "Recommencer", action: handleRestart },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  onClick={item.action}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    width: "100%",
+                    padding: "10px 14px",
+                    background: "transparent",
+                    border: "none",
+                    borderRadius: 10,
+                    color: theme.textSecondary,
+                    fontSize: 14,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: "background 0.15s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = `${theme.accent}20`)}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <span style={{ fontSize: 16 }}>{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Toast copié */}
+      {shareToast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 100,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: theme.accent,
+            color: theme.textPrimary,
+            padding: "10px 20px",
+            borderRadius: 100,
+            fontSize: 13,
+            fontWeight: 600,
+            zIndex: 50,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+            animation: "slideUp 0.3s ease-out",
+          }}
+        >
+          ✓ Conversation copiée
+        </div>
+      )}
 
       {/* Prompt prénom */}
       {showNamePrompt && (
@@ -707,12 +856,15 @@ export default function ChatWindow() {
           </button>
         </div>
 
-        <p
-          className="chat-disclaimer text-xs text-center mt-2"
-          style={{ color: theme.textMuted }}
-        >
+        <div className="chat-disclaimer text-xs text-center mt-2" style={{ color: theme.textMuted }}>
           Conversation privée · Aucune donnée nominative collectée
-        </p>
+          <span style={{ margin: "0 8px", opacity: 0.4 }}>·</span>
+          <a href="/about" style={{ color: theme.textMuted, textDecoration: "none", opacity: 0.7 }}>À propos</a>
+          <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span>
+          <a href="/teleconsultation" style={{ color: theme.textMuted, textDecoration: "none", opacity: 0.7 }}>Téléconsultation</a>
+          <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span>
+          <a href="/privacy" style={{ color: theme.textMuted, textDecoration: "none", opacity: 0.7 }}>Confidentialité</a>
+        </div>
       </div>
 
       {/* Animations globales */}
@@ -728,6 +880,24 @@ export default function ChatWindow() {
         textarea::placeholder { color: inherit; opacity: 0.35; }
         * { box-sizing: border-box; }
       `}</style>
+
+      {/* Onboarding */}
+      {showOnboarding && (
+        <Onboarding onDone={() => setShowOnboarding(false)} />
+      )}
+
+      {/* Journal d'humeur */}
+      {showJournal && (
+        <MoodJournal onClose={() => setShowJournal(false)} currentTheme={theme} />
+      )}
+
+      {/* Fermer menu en cliquant ailleurs */}
+      {showMenu && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 29 }}
+          onClick={() => setShowMenu(false)}
+        />
+      )}
     </div>
   );
 }

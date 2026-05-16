@@ -156,3 +156,20 @@ export const THEMES: Record<EtatEmotionnel, ColorTheme> = {
 export function getTheme(etat: EtatEmotionnel): ColorTheme {
   return THEMES[etat] ?? THEMES.neutre;
 }
+
+export function getLightTheme(etat: EtatEmotionnel): ColorTheme {
+  const dark = getTheme(etat);
+  return {
+    ...dark,
+    bgMain: "#F7FAF8",
+    bgHeader: "#EDF5F0",
+    bgInput: "#EDF5F0",
+    bubbleYura: "#FFFFFF",
+    bubbleYuraBorder: `${dark.accent}30`,
+    bubbleUser: dark.accent,
+    bubbleUserText: "#FFFFFF",
+    textPrimary: "#1A2E25",
+    textSecondary: "#2D5040",
+    textMuted: "#6B9080",
+  };
+}

@@ -592,8 +592,26 @@ export default function HomeClient() {
       </section>
 
       {/* ══ FOOTER ══ */}
-      <footer style={{ background: "#0f1f0f", padding: "24px", textAlign: "center" }}>
-        <p style={{ color: "rgba(255,255,255,0.25)", fontSize: 12, margin: 0 }}>
+      <footer style={{ background: "#0f1f0f", padding: "32px 24px", textAlign: "center" }}>
+        <nav style={{ display: "flex", justifyContent: "center", gap: 28, flexWrap: "wrap", marginBottom: 16 }}>
+          {[
+            { href: "/chat", label: "Commencer" },
+            { href: "/teleconsultation", label: "Téléconsultation" },
+            { href: "/about", label: "À propos" },
+            { href: "/privacy", label: "Confidentialité" },
+          ].map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              style={{ color: "rgba(255,255,255,0.35)", fontSize: 13, textDecoration: "none", transition: "color 0.2s" }}
+              onMouseEnter={(e) => ((e.target as HTMLElement).style.color = "#7fb89a")}
+              onMouseLeave={(e) => ((e.target as HTMLElement).style.color = "rgba(255,255,255,0.35)")}
+            >
+              {l.label}
+            </Link>
+          ))}
+        </nav>
+        <p style={{ color: "rgba(255,255,255,0.2)", fontSize: 12, margin: 0 }}>
           YURA — Initiative pour la santé mentale au Gabon ·{" "}
           <span style={{ color: "#7fb89a" }}>Chambre des Métiers · SING</span>
         </p>
