@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Serif_Display, Plus_Jakarta_Sans } from "next/font/google";
 import SwRegister from "@/components/SwRegister";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -49,6 +50,7 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         {children}
         <SwRegister />
+        <Analytics />
       </body>
     </html>
   );
