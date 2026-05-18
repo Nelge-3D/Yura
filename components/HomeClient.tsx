@@ -352,7 +352,7 @@ export default function HomeClient() {
             <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(201,147,90,0.18)", border: "1px solid rgba(201,147,90,0.4)", borderRadius: 100, padding: "6px 16px", marginBottom: 32 }}>
               <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#e8a84a", animation: "pulse 2s infinite" }} />
               <span style={{ color: "#e8a84a", fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-                Concours Art Numérique · Gabon 2025
+                Concours Art Numérique · Gabon 2026
               </span>
             </div>
 
