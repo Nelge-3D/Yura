@@ -3,11 +3,16 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { getUserName, setUserName, getOrCreateSessionId, clearSession } from "@/lib/uuid";
 import { CrisisLevel } from "@/lib/crisis";
-import { detectEmotion, extractEmotionFromYura, EtatEmotionnel } from "@/lib/emotionDetector";
+import { detectEmotion, extractEmotionFromYura, EtatEmotionnel, ExerciceType } from "@/lib/emotionDetector";
+import ExerciceGuide from "@/components/ExerciceGuide";
 import { getTheme, getLightTheme, ColorTheme } from "@/lib/colorThemes";
 import { logMood } from "@/lib/moodLog";
+import { sauvegarderSession, getLastSession } from "@/lib/journal";
+import { sauvegarderPhrase, getPhrases } from "@/lib/phrases";
+import { FeedbackPayload } from "@/lib/feedback";
 import YuraAvatar from "@/components/YuraAvatar";
-import MoodJournal from "@/components/MoodJournal";
+import JournalModal from "@/components/JournalModal";
+import FeedbackFin from "@/components/FeedbackFin";
 import Onboarding from "@/components/Onboarding";
 
 const STORAGE_KEY_MESSAGES = "yura_messages";
@@ -61,14 +66,29 @@ export default function ChatWindow() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showJournal, setShowJournal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [activeExercice, setActiveExercice] = useState<ExerciceType | null>(null);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackDone, setFeedbackDone] = useState(false);
+  const [savedTexts, setSavedTexts] = useState<Set<string>>(new Set());
+  const [pulsingIdx, setPulsingIdx] = useState<number | null>(null);
   const [shareToast, setShareToast] = useState(false);
   const [lightMode, setLightMode] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const sessionStartRef = useRef<number | null>(null);
+  const etatDebutRef = useRef<EtatEmotionnel>("neutre");
+  const sessionSavedRef = useRef(false);
+  // Ref miroir pour beforeunload (évite les closures périmées)
+  const liveRef = useRef({ messages: [] as typeof messages, etat: "neutre" as EtatEmotionnel });
 
   const theme: ColorTheme = lightMode ? getLightTheme(etat) : getTheme(etat);
+
+  const exerciceUsedRef = useRef(false);
+
+  // Garde le ref miroir synchronisé
+  useEffect(() => { liveRef.current = { messages, etat }; }, [messages, etat]);
 
   // Hydratation depuis localStorage
   useEffect(() => {
@@ -76,6 +96,7 @@ export default function ChatWindow() {
     if (!onboarded) {
       setShowOnboarding(true);
     }
+    setSavedTexts(new Set(getPhrases().map((p) => p.texte)));
     const savedLightMode = localStorage.getItem("yura_light_mode");
     if (savedLightMode === "1") setLightMode(true);
 
@@ -95,11 +116,25 @@ export default function ChatWindow() {
       try {
         const parsed: ChatMessage[] = JSON.parse(savedMessages);
         if (parsed.length > 0) {
+          const lastSession = getLastSession();
+          const EMOTION_CONTEXT: Partial<Record<EtatEmotionnel, string>> = {
+            anxieux: "quelque chose qui t'inquiétait",
+            triste: "quelque chose de douloureux",
+            en_colere: "quelque chose qui te touchait",
+            crise: "une période difficile",
+            joy: "un beau moment",
+          };
+          const contexte = lastSession ? (EMOTION_CONTEXT[lastSession.etatFin] ?? "quelque chose") : null;
+          const returnContent = savedName
+            ? contexte
+              ? `Bon retour, ${savedName} 🌿 La dernière fois, tu m'avais parlé de ${contexte}. Comment tu vas aujourd'hui ?`
+              : `Bon retour, ${savedName} 🌿 Je suis contente de te retrouver. Comment tu vas aujourd'hui ?`
+            : contexte
+              ? `Bon retour 🌿 La dernière fois, tu m'avais parlé de ${contexte}. Comment tu vas aujourd'hui ?`
+              : "Bon retour 🌿 Je suis contente de te retrouver. Comment tu vas aujourd'hui ?";
           const returnMsg: ChatMessage = {
             role: "assistant",
-            content: savedName
-              ? `Bon retour, ${savedName} 🌿 Je suis contente de te retrouver. Comment tu vas aujourd'hui ?`
-              : "Bon retour 🌿 Je suis contente de te retrouver. Comment tu vas aujourd'hui ?",
+            content: returnContent,
             timestamp: Date.now(),
           };
           setMessages([...parsed, returnMsg]);
@@ -120,7 +155,29 @@ export default function ChatWindow() {
   useEffect(() => {
     if (!hydrated || messages.length === 0) return;
     localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(messages.slice(-40)));
-  }, [messages, hydrated]);
+    // Proposer le feedback après 5 messages utilisateur
+    const userCount = messages.filter((m) => m.role === "user").length;
+    if (userCount >= 5 && !feedbackDone && !showFeedback) {
+      setShowFeedback(true);
+    }
+  }, [messages, hydrated, feedbackDone, showFeedback]);
+
+  // Sauvegarde de session à la fermeture de page
+  useEffect(() => {
+    const handleUnload = () => {
+      const { messages: msgs, etat: currentEtat } = liveRef.current;
+      if (!sessionStartRef.current || sessionSavedRef.current) return;
+      if (msgs.filter((m) => m.role === "user").length === 0) return;
+      sauvegarderSession({
+        nbMessages: msgs.length,
+        etatDebut: etatDebutRef.current,
+        etatFin: currentEtat,
+        dureeMinutes: Math.max(1, Math.round((Date.now() - sessionStartRef.current!) / 60000)),
+      });
+    };
+    window.addEventListener("beforeunload", handleUnload);
+    return () => window.removeEventListener("beforeunload", handleUnload);
+  }, []);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -149,6 +206,26 @@ export default function ChatWindow() {
 
   const handleRestart = useCallback(() => {
     if (!window.confirm("Effacer la conversation et recommencer ?")) return;
+    // Sauvegarder la session courante avant de tout effacer
+    if (sessionStartRef.current && !sessionSavedRef.current) {
+      const { messages: msgs, etat: currentEtat } = liveRef.current;
+      if (msgs.filter((m) => m.role === "user").length > 0) {
+        sauvegarderSession({
+          nbMessages: msgs.length,
+          etatDebut: etatDebutRef.current,
+          etatFin: currentEtat,
+          dureeMinutes: Math.max(1, Math.round((Date.now() - sessionStartRef.current) / 60000)),
+        });
+        sessionSavedRef.current = true;
+      }
+    }
+    sessionStartRef.current = null;
+    etatDebutRef.current = "neutre";
+    sessionSavedRef.current = false;
+    exerciceUsedRef.current = false;
+    setActiveExercice(null);
+    setShowFeedback(false);
+    setFeedbackDone(false);
     window.speechSynthesis?.cancel();
     clearSession();
     localStorage.removeItem(STORAGE_KEY_MESSAGES);
@@ -261,9 +338,24 @@ export default function ChatWindow() {
     setShowMoodPicker(false);
   };
 
+  const handleSavePhrase = useCallback((texte: string, idx: number) => {
+    if (savedTexts.has(texte)) return;
+    sauvegarderPhrase(texte);
+    setSavedTexts((prev) => new Set([...prev, texte]));
+    setPulsingIdx(idx);
+    setTimeout(() => setPulsingIdx(null), 700);
+  }, [savedTexts]);
+
   const sendMessage = useCallback(async () => {
     const text = input.trim();
     if (!text || isLoading) return;
+
+    // Démarre le chrono à la toute première réponse utilisateur
+    if (sessionStartRef.current === null) {
+      sessionStartRef.current = Date.now();
+      etatDebutRef.current = liveRef.current.etat;
+      sessionSavedRef.current = false;
+    }
 
     setShowMoodPicker(false);
     const clientEmotion = detectEmotion(text);
@@ -288,10 +380,15 @@ export default function ChatWindow() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      const { text: cleanText, emotion: yuraEmotion } = extractEmotionFromYura(data.message);
+      const { text: cleanText, emotion: yuraEmotion, exercice } = extractEmotionFromYura(data.message);
 
       const finalEmotion = yuraEmotion ?? clientEmotion;
       if (finalEmotion !== "neutre") updateEtat(finalEmotion);
+
+      if (exercice && !exerciceUsedRef.current) {
+        exerciceUsedRef.current = true;
+        setActiveExercice(exercice);
+      }
 
       setMessages((prev) => [
         ...prev,
@@ -718,17 +815,38 @@ export default function ChatWindow() {
                 >
                   {msg.content}
                 </div>
-                <span
+                <div
                   style={{
-                    fontSize: 11,
-                    color: theme.textMuted,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
                     alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
                     paddingInline: 4,
-                    transition: "color 2s ease",
                   }}
                 >
-                  {formatTime(msg.timestamp)}
-                </span>
+                  <span style={{ fontSize: 11, color: theme.textMuted, transition: "color 2s ease" }}>
+                    {formatTime(msg.timestamp)}
+                  </span>
+                  {msg.role === "assistant" && (
+                    <button
+                      onClick={() => handleSavePhrase(msg.content, i)}
+                      title={savedTexts.has(msg.content) ? "Sauvegardé" : "Sauvegarder cette phrase"}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        cursor: savedTexts.has(msg.content) ? "default" : "pointer",
+                        fontSize: 13,
+                        lineHeight: 1,
+                        padding: "2px 3px",
+                        opacity: savedTexts.has(msg.content) ? 1 : 0.28,
+                        transition: "opacity 0.25s",
+                        animation: pulsingIdx === i ? "heart-pulse 0.65s ease-out" : "none",
+                      }}
+                    >
+                      {savedTexts.has(msg.content) ? "❤️" : "🤍"}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -764,6 +882,35 @@ export default function ChatWindow() {
           <div ref={bottomRef} />
         </div>
       </div>
+
+      {/* Exercice TCC */}
+      {activeExercice && (
+        <ExerciceGuide
+          type={activeExercice}
+          onDone={() => setActiveExercice(null)}
+          currentTheme={theme}
+        />
+      )}
+
+      {/* Feedback de fin de session */}
+      {showFeedback && !activeExercice && (() => {
+        const sessionData: Omit<FeedbackPayload, "note" | "commentaire"> = {
+          uuid: liveRef.current.messages[0]?.timestamp?.toString() ?? "unknown",
+          etatDebut: etatDebutRef.current,
+          etatFin: etat,
+          nbMessages: messages.length,
+          dureeMinutes: sessionStartRef.current
+            ? Math.max(1, Math.round((Date.now() - sessionStartRef.current) / 60000))
+            : 0,
+        };
+        return (
+          <FeedbackFin
+            currentTheme={theme}
+            sessionData={sessionData}
+            onDone={() => { setShowFeedback(false); setFeedbackDone(true); }}
+          />
+        );
+      })()}
 
       {/* Input */}
       <div
@@ -879,6 +1026,12 @@ export default function ChatWindow() {
         }
         textarea::placeholder { color: inherit; opacity: 0.35; }
         * { box-sizing: border-box; }
+        @keyframes heart-pulse {
+          0%   { transform: scale(1); }
+          40%  { transform: scale(1.65); }
+          70%  { transform: scale(1.2); }
+          100% { transform: scale(1); }
+        }
       `}</style>
 
       {/* Onboarding */}
@@ -886,9 +1039,9 @@ export default function ChatWindow() {
         <Onboarding onDone={() => setShowOnboarding(false)} />
       )}
 
-      {/* Journal d'humeur */}
+      {/* Journal de progression */}
       {showJournal && (
-        <MoodJournal onClose={() => setShowJournal(false)} currentTheme={theme} />
+        <JournalModal onClose={() => setShowJournal(false)} currentTheme={theme} />
       )}
 
       {/* Fermer menu en cliquant ailleurs */}

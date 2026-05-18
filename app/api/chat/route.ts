@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { detectCrisisLevel } from "@/lib/crisis";
 import { YURA_SYSTEM_PROMPT } from "@/lib/yuraSystemPrompt";
+import knowledgeBase from "@/data/yura-knowledge.json";
+
+const knowledgeContext = `
+## BASE DE CONNAISSANCES YURA (prioritaire)
+Tu dois consulter ces données en priorité avant de répondre.
+Utilise les proverbes, métaphores et vocabulaire quand pertinent.
+Ne les invente jamais — utilise uniquement ceux listés ici.
+
+${JSON.stringify(knowledgeBase, null, 2)}
+`;
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
 
@@ -38,8 +48,8 @@ export async function POST(req: NextRequest) {
     const history = firstUserIdx >= 0 ? rawHistory.slice(firstUserIdx) : [];
 
     const systemPrompt = userName
-      ? `${YURA_SYSTEM_PROMPT}\n\nL'utilisateur s'appelle "${userName}". Utilise son prénom naturellement.`
-      : YURA_SYSTEM_PROMPT;
+      ? `${YURA_SYSTEM_PROMPT}\n\nL'utilisateur s'appelle "${userName}". Utilise son prénom naturellement.\n\n${knowledgeContext}`
+      : `${YURA_SYSTEM_PROMPT}\n\n${knowledgeContext}`;
 
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",

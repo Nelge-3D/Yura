@@ -115,18 +115,45 @@ export function detectEmotion(text: string): EtatEmotionnel {
   return best[0];
 }
 
-// Extrait l'émotion du JSON caché que YURA glisse en fin de réponse
-// Format attendu : {"emotion":"triste"} en fin de message
-export function extractEmotionFromYura(
-  raw: string
-): { text: string; emotion: EtatEmotionnel | null } {
-  const match = raw.match(/\{"emotion"\s*:\s*"([^"]+)"\}\s*$/);
-  if (!match) return { text: raw.trim(), emotion: null };
+export type ExerciceType =
+  | "respiration_4-4-6"
+  | "ancrage_5-4-3-2-1"
+  | "defusion_cognitive";
 
-  const emotion = match[1] as EtatEmotionnel;
-  const text = raw.slice(0, match.index).trim();
-  const valid: EtatEmotionnel[] = [
+const VALID_EXERCICES: ExerciceType[] = [
+  "respiration_4-4-6",
+  "ancrage_5-4-3-2-1",
+  "defusion_cognitive",
+];
+
+// Extrait l'émotion et l'éventuel exercice des JSON cachés en fin de réponse
+// Format attendu : {"exercice":"..."}\n{"emotion":"..."} (exercice optionnel)
+export function extractEmotionFromYura(raw: string): {
+  text: string;
+  emotion: EtatEmotionnel | null;
+  exercice: ExerciceType | null;
+} {
+  const VALID_EMOTIONS: EtatEmotionnel[] = [
     "calme", "anxieux", "triste", "en_colere", "joy", "crise", "neutre",
   ];
-  return { text, emotion: valid.includes(emotion) ? emotion : null };
+
+  // Extraire le bloc exercice (n'importe où après le texte)
+  const exMatch = raw.match(/\{"exercice"\s*:\s*"([^"]+)"\}/);
+  const exercice = exMatch && VALID_EXERCICES.includes(exMatch[1] as ExerciceType)
+    ? (exMatch[1] as ExerciceType)
+    : null;
+  const withoutEx = exMatch
+    ? raw.slice(0, exMatch.index) + raw.slice(exMatch.index! + exMatch[0].length)
+    : raw;
+
+  // Extraire l'émotion (toujours en fin de message)
+  const emMatch = withoutEx.match(/\{"emotion"\s*:\s*"([^"]+)"\}\s*$/);
+  const emotion = emMatch && VALID_EMOTIONS.includes(emMatch[1] as EtatEmotionnel)
+    ? (emMatch[1] as EtatEmotionnel)
+    : null;
+  const text = emMatch
+    ? withoutEx.slice(0, emMatch.index).trim()
+    : withoutEx.trim();
+
+  return { text, emotion, exercice };
 }

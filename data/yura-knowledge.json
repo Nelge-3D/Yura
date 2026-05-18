@@ -1,0 +1,123 @@
+{
+  "version": "1.0",
+  "lastUpdated": "2026-05-17",
+  "proverbes": [
+    {
+      "id": "prov_001",
+      "texte": "Quand on est nombreux pour traverser la rivière, on n'est pas dévoré par les caïmans.",
+      "ethnie": "Gabonais",
+      "emotion": "solitude",
+      "usage": "Rappeler que la souffrance se traverse mieux accompagné"
+    },
+    {
+      "id": "prov_002",
+      "texte": "L'avion atterrit toujours, quelle que soit la durée de son vol.",
+      "ethnie": "Gabonais",
+      "emotion": "anxiete",
+      "usage": "Rassurer sur la fin des épreuves"
+    },
+    {
+      "id": "prov_003",
+      "texte": "Un grain de riz semé, cent récolté.",
+      "ethnie": "Gabonais",
+      "emotion": "decouragement",
+      "usage": "Encourager les petits pas"
+    },
+    {
+      "id": "prov_004",
+      "texte": "Ne jetez pas vos rames tant que la pirogue n'est pas à la rive.",
+      "ethnie": "Mpongwè",
+      "emotion": "epuisement",
+      "usage": "Persévérance même épuisé"
+    },
+    {
+      "id": "prov_005",
+      "texte": "Le soleil n'oublie aucun village.",
+      "ethnie": "Ambede",
+      "emotion": "abandon",
+      "usage": "Personne n'est oublié, tout le monde compte"
+    },
+    {
+      "id": "prov_006",
+      "texte": "Ne considérez pas la brièveté des jours mais pensez à la longueur de l'année.",
+      "ethnie": "Gabonais",
+      "emotion": "deuil",
+      "usage": "Le deuil se traverse pas à pas"
+    },
+    {
+      "id": "prov_007",
+      "texte": "Quand vous êtes en colère, vous ressemblez à un noble, mais quand vous restez calme, vous n'êtes qu'un sujet.",
+      "ethnie": "Gabonais",
+      "emotion": "colere",
+      "usage": "La maîtrise de soi comme force"
+    },
+    {
+      "id": "prov_008",
+      "texte": "Si vous portez un panier d'œufs, ne dansez pas.",
+      "ethnie": "Ambede",
+      "emotion": "anxiete",
+      "usage": "Prendre soin de ce qui est fragile, y compris soi"
+    }
+  ],
+  "vocabulaire": {
+    "fang": {
+      "bonjour": "Mbolo",
+      "merci": "Abora",
+      "commentVasTu": "Mbôlani",
+      "bienMerci": "Yô_ne_mvo",
+      "jeTaime": "Ma zing wa",
+      "courage": "Mekè"
+    },
+    "punu": {
+      "bonjour": "Mbolo / Wuma rambuge",
+      "merci": "Diboty",
+      "commentVasTu": "Marambu ga"
+    },
+    "myene": {
+      "merci": "Akiba"
+    },
+    "universel": {
+      "salutation": "Mbolo (utilisé par toutes les ethnies gabonaises)"
+    }
+  },
+  "metaphores": [
+    {
+      "situation": "anxiete_aigue",
+      "metaphore": "L'anxiété, c'est comme un tam-tam qui bat trop vite dans le ventre. On peut apprendre à ralentir le rythme ensemble."
+    },
+    {
+      "situation": "depression_repli",
+      "metaphore": "Quand la forêt semble sans sortie, c'est souvent qu'on cherche la lumière au mauvais endroit. Elle est là, au-dessus des arbres."
+    },
+    {
+      "situation": "resilience",
+      "metaphore": "La forêt après la pluie est plus verte qu'avant. Tu traverses quelque chose de difficile, mais tu vas repousser."
+    },
+    {
+      "situation": "deuil_larmes",
+      "metaphore": "Les larmes sont la pluie qui permet à la forêt du cœur de repousser. Elles ne sont pas une faiblesse."
+    },
+    {
+      "situation": "espoir",
+      "metaphore": "La rivière trouve toujours la mer, même quand elle traverse des rochers."
+    },
+    {
+      "situation": "solitude",
+      "metaphore": "Même dans la forêt la plus dense, les arbres partagent leurs racines sous la terre. Tu n'es pas seul(e)."
+    }
+  ],
+  "ressources_urgence": {
+    "crise": {
+      "numero": "1300",
+      "lieu": "CHU de Libreville",
+      "disponibilite": "24h/24, 7j/7",
+      "message": "Si tu es en danger, appelle le 1300 maintenant."
+    }
+  },
+  "spiritualite": {
+    "bwiti": "Rite initiatique gabonais fondé par les Mitsogho. La guérison y est toujours collective. On ne guérit pas seul.",
+    "ancetres": "Dans la tradition gabonaise, les défunts deviennent des moukala — ancêtres protecteurs qui veillent sur les vivants.",
+    "foret": "La forêt équatoriale est sacrée dans toutes les traditions gabonaises. Elle symbolise la vie, la protection et la guérison.",
+    "masque_punu": "Le masque blanc Punu (mukudji) représente les ancêtres bienveillants. Le blanc = pureté et connexion à ceux qui veillent."
+  }
+}
