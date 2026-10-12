@@ -25,6 +25,14 @@ export function pcmToWav(pcm: Uint8Array, sampleRate: number, channels = 1, bits
   return out;
 }
 
+// PCM 16 bits signé little-endian → échantillons flottants [-1, 1] pour Web Audio
+export function pcm16ToFloat32(pcm: Uint8Array): Float32Array<ArrayBuffer> {
+  const view = new DataView(pcm.buffer, pcm.byteOffset, pcm.byteLength);
+  const out = new Float32Array(Math.floor(pcm.byteLength / 2));
+  for (let i = 0; i < out.length; i++) out[i] = view.getInt16(i * 2, true) / 32768;
+  return out;
+}
+
 // « audio/l16; rate=24000; channels=1 » → { type: "audio/l16", rate: 24000, channels: 1 }
 export function parseAudioMime(mime: string): { type: string; rate: number | null; channels: number | null } {
   const [type, ...params] = mime.split(";").map((p) => p.trim());
