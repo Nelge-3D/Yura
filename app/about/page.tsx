@@ -12,7 +12,7 @@ const TEAM = [
 
 const VALUES = [
   { icon: "🌿", title: "Ancrage culturel", desc: "YURA intègre la culture gabonaise — langues, proverbes, réalités locales — pour créer un espace d'écoute qui vous ressemble." },
-  { icon: "🔒", title: "Confidentialité totale", desc: "Aucune donnée nominative n'est collectée. Les conversations restent sur votre appareil. Vous restez anonyme." },
+  { icon: "🔒", title: "Sans compte", desc: "Aucune inscription ni donnée nominative demandée. L'historique reste sur votre appareil ; les messages sont transmis à Google Gemini pour générer les réponses, sans être conservés par YURA." },
   { icon: "🤝", title: "Pont vers les pros", desc: "YURA n'est pas un substitut au suivi professionnel. Elle accompagne et oriente vers les psychologues et psychiatres partenaires." },
   { icon: "🌍", title: "Accessibilité", desc: "Gratuit, sans inscription, disponible sur tous les appareils. Pensé pour le Gabon et toute l'Afrique centrale." },
 ];

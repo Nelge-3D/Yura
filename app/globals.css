@@ -55,12 +55,15 @@ html { scroll-behavior: smooth; }
 /* ChatDemo caché sur mobile */
 @media (max-width: 639px) { .hero-demo-col { display: none !important; } }
 
-/* Stats : 2 colonnes sur mobile, supprimer les bordures verticales */
+/* Stats : 2 colonnes sur mobile. Les enfants directs de la grille sont les blocs <Reveal>,
+   d'où les sélecteurs « .stats-grid > * » ; un dernier élément seul occupe toute la ligne. */
 @media (max-width: 599px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
-  .stats-item { border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.07); }
-  .stats-item:nth-child(odd) { border-right: 1px solid rgba(255,255,255,0.07) !important; }
-  .stats-item:last-child, .stats-item:nth-last-child(2):nth-child(odd) { border-bottom: none !important; }
+  .stats-grid .stats-item { border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.07); }
+  .stats-grid > :nth-child(odd):not(:last-child) .stats-item { border-right: 1px solid rgba(255,255,255,0.07) !important; }
+  .stats-grid > :last-child .stats-item,
+  .stats-grid > :nth-last-child(2):nth-child(odd) .stats-item { border-bottom: none !important; }
+  .stats-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
 
 /* Sections padding */

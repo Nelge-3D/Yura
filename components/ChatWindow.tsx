@@ -555,7 +555,7 @@ export default function ChatWindow() {
             YURA
           </h2>
           <p className="text-xs" style={{ color: theme.textMuted }}>
-            Écoute confidentielle · Anonyme
+            Écoute confidentielle · Sans compte
           </p>
         </div>
 

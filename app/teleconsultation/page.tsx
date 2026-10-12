@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
+// Spécialités seulement : aucun professionnel n'est encore partenaire. Ne jamais afficher de nom
+// de praticien avant un partenariat réel et vérifié.
 const SPECIALISTS = [
-  { role: "Psychologue clinicienne", name: "Dr. Amina Obiang", eta: "Bientôt disponible", color: "#7fb89a" },
-  { role: "Psychiatre", name: "Dr. Jean-Marc Nzamba", eta: "Bientôt disponible", color: "#c9935a" },
-  { role: "Sexologue", name: "Dr. Laure Moussavou", eta: "Bientôt disponible", color: "#e8a84a" },
-  { role: "Thérapeute de couple", name: "Dr. Paul Ondo", eta: "Bientôt disponible", color: "#4a7c59" },
+  { role: "Psychologue", desc: "Écoute et accompagnement", eta: "Bientôt disponible", color: "#7fb89a" },
+  { role: "Psychiatre", desc: "Avis médical spécialisé", eta: "Bientôt disponible", color: "#c9935a" },
+  { role: "Sexologue", desc: "Vie intime et sexualité", eta: "Bientôt disponible", color: "#e8a84a" },
+  { role: "Thérapeute de couple", desc: "Relations et famille", eta: "Bientôt disponible", color: "#4a7c59" },
 ];
 
 const FEATURES = [
@@ -23,20 +25,18 @@ const FEATURES = [
   },
   {
     icon: "🔒",
-    title: "Anonymat préservé",
-    desc: "Vos données restent protégées. Votre identité n'est partagée qu'avec votre thérapeute.",
+    title: "Confidentialité",
+    desc: "Votre identité ne sera partagée qu'avec le professionnel que vous consultez.",
   },
   {
     icon: "🌿",
     title: "Approche culturelle",
-    desc: "Des professionnels formés à intégrer la culture et les réalités gabonaises dans leur pratique.",
+    desc: "Des professionnels sensibles à la culture et aux réalités gabonaises.",
   },
 ];
 
 export default function TeleconsultationPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [email, setEmail] = useState("");
-  const [submitted, setSubmitted] = useState(false);
   const [activeSpec, setActiveSpec] = useState(0);
 
   // Particle canvas animation
@@ -100,11 +100,6 @@ export default function TeleconsultationPage() {
     const t = setInterval(() => setActiveSpec((p) => (p + 1) % SPECIALISTS.length), 2800);
     return () => clearInterval(t);
   }, []);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email.trim()) setSubmitted(true);
-  };
 
   return (
     <main
@@ -256,8 +251,8 @@ export default function TeleconsultationPage() {
             margin: "1.5rem auto 0",
           }}
         >
-          YURA t'écoute, puis te connecte à des psychologues, psychiatres et
-          sexologues certifiés. Consultation vidéo sécurisée, depuis chez toi.
+          YURA t&apos;écoute dès aujourd&apos;hui. Bientôt, elle pourra aussi te mettre en
+          relation avec des psychologues, psychiatres et sexologues, en vidéo depuis chez toi.
         </p>
 
         {/* Countdown placeholder */}
@@ -285,81 +280,23 @@ export default function TeleconsultationPage() {
           ))}
         </div>
 
-        {/* Email capture */}
-        {!submitted ? (
-          <form
-            onSubmit={handleSubmit}
-            style={{
-              display: "flex",
-              gap: "0.75rem",
-              maxWidth: 460,
-              margin: "0 auto",
-              flexWrap: "wrap",
-              justifyContent: "center",
-            }}
-          >
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Ton email pour être notifié(e)..."
-              required
-              style={{
-                flex: 1,
-                minWidth: 220,
-                background: "rgba(255,255,255,0.07)",
-                border: "1px solid rgba(127,184,154,0.3)",
-                borderRadius: 12,
-                padding: "0.85rem 1.1rem",
-                fontSize: 14,
-                color: "#fff",
-                outline: "none",
-                fontFamily: "inherit",
-              }}
-            />
-            <button
-              type="submit"
-              style={{
-                background: "#4a7c59",
-                border: "none",
-                borderRadius: 12,
-                padding: "0.85rem 1.5rem",
-                fontSize: 14,
-                fontWeight: 600,
-                color: "#fff",
-                cursor: "pointer",
-                fontFamily: "inherit",
-                whiteSpace: "nowrap",
-                transition: "background 0.2s",
-              }}
-              onMouseOver={(e) => ((e.target as HTMLElement).style.background = "#5a8c69")}
-              onMouseOut={(e) => ((e.target as HTMLElement).style.background = "#4a7c59")}
-            >
-              Me notifier →
-            </button>
-          </form>
-        ) : (
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.6rem",
-              background: "rgba(74,124,89,0.2)",
-              border: "1px solid rgba(127,184,154,0.4)",
-              borderRadius: 12,
-              padding: "0.85rem 1.5rem",
-              fontSize: 14,
-              color: "#7fb89a",
-              fontWeight: 500,
-            }}
-          >
-            🌿 Parfait ! On te contacte dès l&apos;ouverture.
-          </div>
-        )}
-
-        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", marginTop: "0.8rem" }}>
-          Aucune donnée nominative stockée sans consentement.
-        </p>
+        {/* Pas de collecte d'email : aucune liste de diffusion n'existe encore */}
+        <Link
+          href="/chat"
+          className="tap-target"
+          style={{
+            justifyContent: "center",
+            background: "#4a7c59",
+            borderRadius: 12,
+            padding: "0.85rem 1.5rem",
+            fontSize: 14,
+            fontWeight: 600,
+            color: "#fff",
+            textDecoration: "none",
+          }}
+        >
+          En attendant, parler à YURA →
+        </Link>
       </section>
 
       {/* SPECIALISTS CAROUSEL */}
@@ -383,7 +320,7 @@ export default function TeleconsultationPage() {
             fontWeight: 600,
           }}
         >
-          Futurs praticiens
+          Les spécialités à venir
         </p>
 
         <div
@@ -431,7 +368,7 @@ export default function TeleconsultationPage() {
                 {sp.role}
               </div>
               <div style={{ fontSize: 14, color: "#fff", fontWeight: 600, marginBottom: "0.4rem", fontFamily: "Georgia, serif" }}>
-                {sp.name}
+                {sp.desc}
               </div>
               <div
                 style={{
@@ -574,7 +511,7 @@ export default function TeleconsultationPage() {
             ))}
           </div>
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.7 }}>
-            YURA est le pont. Elle t&apos;écoute d&apos;abord anonymement, évalue ta situation,
+            YURA est le pont. Elle t&apos;écoute d&apos;abord, sans te demander ton identité, évalue ta situation,
             puis te connecte progressivement à un professionnel certifié pour une
             consultation vidéo confidentielle.
           </p>
@@ -614,7 +551,7 @@ export default function TeleconsultationPage() {
           🌿 Parler à YURA maintenant
         </Link>
         <p style={{ marginTop: "1.5rem", fontSize: 12, color: "rgba(255,255,255,0.2)" }}>
-          Anonyme · Gratuit · Disponible maintenant
+          Sans compte · Gratuit · Disponible maintenant
         </p>
       </section>
 

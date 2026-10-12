@@ -19,7 +19,7 @@ const SLIDES = [
     icon: "🔒",
     title: "Ta vie privée, protégée",
     body: "Tes conversations restent sur ton appareil. Aucune donnée nominative n'est collectée. Tu es libre d'arrêter à tout moment.",
-    sub: "Confidentiel · Anonyme · Gratuit",
+    sub: "Confidentiel · Sans compte · Gratuit",
   },
 ];
 

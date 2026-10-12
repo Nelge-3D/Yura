@@ -162,44 +162,6 @@ function ChatDemo() {
   );
 }
 
-// ─── Compteur animé ───────────────────────────────────────────────────────────
-
-function Counter({ target, suffix = "" }: { target: number; suffix?: string }) {
-  const [count, setCount] = useState(0);
-  const ref = useRef<HTMLSpanElement>(null);
-  const started = useRef(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !started.current) {
-          started.current = true;
-          const duration = 1200;
-          const start = performance.now();
-          const tick = (now: number) => {
-            const p = Math.min((now - start) / duration, 1);
-            setCount(Math.floor(p * p * target));
-            if (p < 1) requestAnimationFrame(tick);
-            else setCount(target);
-          };
-          requestAnimationFrame(tick);
-        }
-      },
-      { threshold: 0.5 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [target]);
-
-  return (
-    <span ref={ref}>
-      {count}{suffix}
-    </span>
-  );
-}
-
 // ─── Reveal au scroll ─────────────────────────────────────────────────────────
 
 function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
@@ -292,26 +254,26 @@ function Particles() {
 // ─── Données ──────────────────────────────────────────────────────────────────
 
 const steps = [
-  { num: "01", title: "Contact sans friction", desc: "Pas d'inscription. Identifiant anonyme (UUID). YURA t'accueille chaleureusement.", quote: '"Mbolo ! Comment s\'est passée ta journée ?"', accent: "#7fb89a" },
+  { num: "01", title: "Contact sans friction", desc: "Pas d'inscription, aucune identité demandée. YURA t'accueille chaleureusement.", quote: '"Mbolo ! Comment s\'est passée ta journée ?"', accent: "#7fb89a" },
   { num: "02", title: "Écoute culturellement ancrée", desc: "TCC simplifiée + références gabonaises : contes, proverbes, symboles des ethnies.", quote: '"Les larmes sont la pluie qui permet à la forêt du cœur de repousser."', accent: "#c9935a" },
   { num: "03", title: "Escalade intelligente", desc: "Détection discrète de la détresse → proposition progressive d'un accompagnement humain.", quote: '"Je veux te connecter avec quelqu\'un qui peut vraiment t\'aider."', accent: "#e8a84a" },
-  { num: "04", title: "Consultation professionnelle", desc: "Téléconsultation ou RDV en présentiel. Psychologues et professionnels qualifiés.", quote: "Une plateforme au service de l'accès aux soins mentaux au Gabon.", accent: "#4a7c59" },
+  { num: "04", title: "Consultation professionnelle", desc: "Bientôt : téléconsultation ou rendez-vous en présentiel avec des professionnels qualifiés.", quote: "Une plateforme au service de l'accès aux soins mentaux au Gabon.", accent: "#4a7c59" },
 ];
 
 const pillars = [
-  { icon: "🌿", title: "Culturellement gabonaise", desc: "Contes, proverbes et traditions de toutes les ethnies du Gabon." },
-  { icon: "🔒", title: "Anonymat total", desc: "UUID persistant. Zéro données nominatives au premier contact." },
+  { icon: "🌿", title: "Culturellement gabonaise", desc: "Contes, proverbes et références culturelles du Gabon." },
+  { icon: "🔒", title: "Sans compte", desc: "Aucune inscription ni identité demandée pour commencer à parler." },
   { icon: "🤝", title: "Passerelle humaine", desc: "YURA ne remplace pas le psychologue. Elle tient la main jusqu'à lui." },
-  { icon: "📱", title: "Toujours disponible", desc: "App mobile + WhatsApp. Vocal et chat. 24h/24, 7j/7." },
+  { icon: "📱", title: "Toujours disponible", desc: "Sur ton téléphone ou ton ordinateur. À l'écrit ou à voix haute. 24h/24, 7j/7." },
   { icon: "🏥", title: "Renforce le public", desc: "Oriente vers les structures existantes. Ne les concurrence pas." },
   { icon: "🎓", title: "Crée des opportunités", desc: "La demande générée = formation de psychologues gabonais." },
 ];
 
+// Uniquement des faits vérifiables : pas de chiffres d'usage tant qu'il n'y a pas de vraies mesures
 const stats = [
-  { value: 1500, suffix: "", label: "conversations / jour", sublabel: "Free tier Gemini" },
-  { value: 24, suffix: "h", label: "disponible", sublabel: "7 jours sur 7" },
-  { value: 0, suffix: "", label: "inscription requise", sublabel: "Anonymat total" },
-  { value: 5, suffix: "", label: "ethnies représentées", sublabel: "Culture inclusive" },
+  { display: "24h/24", label: "disponible", sublabel: "7 jours sur 7" },
+  { display: "0", label: "inscription requise", sublabel: "Sans compte" },
+  { display: "Écrit + vocal", label: "à ton rythme", sublabel: "Écris ou parle à YURA" },
 ];
 
 // ─── Page principale ──────────────────────────────────────────────────────────
@@ -385,7 +347,7 @@ export default function HomeClient() {
 
             {/* Tags */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 36 }}>
-              {["IA conversationnelle", "Santé mentale", "Culture gabonaise", "Anonymat total"].map((tag) => (
+              {["IA conversationnelle", "Santé mentale", "Culture gabonaise", "Sans compte"].map((tag) => (
                 <span key={tag} style={{ color: "#7fb89a", fontSize: 12, border: "1px solid rgba(127,184,154,0.3)", background: "rgba(127,184,154,0.08)", borderRadius: 100, padding: "4px 12px" }}>
                   {tag}
                 </span>
@@ -440,7 +402,7 @@ export default function HomeClient() {
             <Reveal key={i} delay={i * 100}>
               <div className="stats-item" style={{ textAlign: "center", padding: "24px 16px", borderRight: i < stats.length - 1 ? "1px solid rgba(255,255,255,0.07)" : "none" }}>
                 <div style={{ fontFamily: "Georgia,serif", fontSize: "clamp(2rem,5vw,3rem)", color: "#7fb89a", fontWeight: 300, lineHeight: 1 }}>
-                  <Counter target={s.value} suffix={s.suffix} />
+                  {s.display}
                 </div>
                 <p style={{ color: "#fff", fontSize: 13, fontWeight: 600, marginTop: 6, marginBottom: 2 }}>{s.label}</p>
                 <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11 }}>{s.sublabel}</p>
@@ -585,7 +547,7 @@ export default function HomeClient() {
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M14 8L2 2l2.5 6L2 14l12-6z" fill="white" /></svg>
             </Link>
             <p style={{ color: "rgba(255,255,255,0.2)", fontSize: 12, marginTop: 20 }}>
-              Anonyme · Gratuit · Confidentiel
+              Sans compte · Gratuit · Confidentiel
             </p>
           </div>
         </Reveal>
