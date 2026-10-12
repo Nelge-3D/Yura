@@ -27,6 +27,10 @@ const SECTIONS = [
     content: `Vos messages sont transmis à l'API Google Gemini pour générer les réponses de YURA. Ces échanges sont traités conformément à la politique de confidentialité de Google. Nous ne conservons pas d'historique de vos conversations côté serveur.`,
   },
   {
+    title: "Lecture vocale",
+    content: `La lecture vocale est désactivée par défaut : YURA ne parle jamais sans que vous l'ayez demandé, en activant la lecture automatique ou en appuyant sur « Écouter ». Lorsque vous l'utilisez, le texte de la réponse de YURA (et non vos propres messages) est envoyé à Google (Gemini) pour générer la voix, en demandant à Google de ne pas conserver la requête. YURA ne conserve ni ce texte ni l'audio sur ses serveurs et ne les enregistre dans aucun journal. L'audio est gardé uniquement dans la mémoire de votre navigateur pendant la conversation, puis effacé quand vous quittez la page. Pour limiter les abus, un identifiant anonyme et une empreinte de votre adresse IP servent à compter les caractères lus dans la journée ; ce compteur n'est conservé qu'en mémoire et remis à zéro chaque jour. Si la voix de Google est indisponible, YURA utilise la voix intégrée à votre navigateur ; selon le navigateur, celle-ci peut passer par les serveurs de son éditeur (Google, Microsoft ou Apple).`,
+  },
+  {
     title: "Cookies et trackers",
     content: `YURA n'utilise aucun cookie de tracking, aucun pixel publicitaire et aucun outil d'analyse comportementale. Le seul stockage local utilisé est celui décrit ci-dessus, nécessaire au fonctionnement de l'application.`,
   },
@@ -91,7 +95,7 @@ export default function PrivacyPage() {
           Politique de confidentialité
         </h1>
         <p style={{ color: MUTED, fontSize: 14 }}>
-          Dernière mise à jour : mai 2025
+          Dernière mise à jour : octobre 2026
         </p>
         <div
           style={{

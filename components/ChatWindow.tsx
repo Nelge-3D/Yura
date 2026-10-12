@@ -10,6 +10,7 @@ import { logMood } from "@/lib/moodLog";
 import { sauvegarderSession, getLastSession } from "@/lib/journal";
 import { sauvegarderPhrase, getPhrases } from "@/lib/phrases";
 import { FeedbackPayload } from "@/lib/feedback";
+import { TtsPlayer, Playback } from "@/lib/tts/player";
 import YuraAvatar from "@/components/YuraAvatar";
 import JournalModal from "@/components/JournalModal";
 import FeedbackFin from "@/components/FeedbackFin";
@@ -17,6 +18,7 @@ import Onboarding from "@/components/Onboarding";
 
 const STORAGE_KEY_MESSAGES = "yura_messages";
 const STORAGE_KEY_EMOTION = "yura_emotion";
+const STORAGE_KEY_VOICE = "yura_voice";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -54,9 +56,12 @@ export default function ChatWindow() {
   const [userName, setUserNameState] = useState<string | null>(null);
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [nameInput, setNameInput] = useState("");
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  // Lecture auto désactivée par défaut : le téléphone ne doit jamais parler sans accord
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  // Message en cours de lecture (id = timestamp) et son état
+  const [playback, setPlayback] = useState<Playback | null>(null);
+  const isSpeaking = playback?.state === "playing";
   const [hasMicSupport, setHasMicSupport] = useState(false);
   const [etat, setEtat] = useState<EtatEmotionnel>("neutre");
   const [prevEtat, setPrevEtat] = useState<EtatEmotionnel | null>(null);
@@ -86,6 +91,7 @@ export default function ChatWindow() {
   const theme: ColorTheme = lightMode ? getLightTheme(etat) : getTheme(etat);
 
   const exerciceUsedRef = useRef(false);
+  const playerRef = useRef<TtsPlayer | null>(null);
 
   // Garde le ref miroir synchronisé
   useEffect(() => { liveRef.current = { messages, etat }; }, [messages, etat]);
@@ -99,6 +105,11 @@ export default function ChatWindow() {
     setSavedTexts(new Set(getPhrases().map((p) => p.texte)));
     const savedLightMode = localStorage.getItem("yura_light_mode");
     if (savedLightMode === "1") setLightMode(true);
+    try {
+      if (localStorage.getItem(STORAGE_KEY_VOICE) === "1") setVoiceEnabled(true);
+    } catch {
+      // stockage indisponible (navigation privée) : on reste sur OFF
+    }
 
     getOrCreateSessionId();
     const savedName = getUserName();
@@ -204,6 +215,51 @@ export default function ChatWindow() {
     if (newEtat === "crise") setCrisisDismissed(false);
   }, []);
 
+  // Lecteur vocal (Gemini TTS, repli Web Speech) ; coupé si on quitte la page de chat
+  useEffect(() => {
+    const player = new TtsPlayer(setPlayback);
+    playerRef.current = player;
+    return () => player.dispose();
+  }, []);
+
+  const stopSpeaking = useCallback(() => {
+    playerRef.current?.stop();
+  }, []);
+
+  // À appeler uniquement depuis un geste (clic, touche) : débloque l'audio sur iOS
+  const unlockAudio = useCallback(() => {
+    playerRef.current?.unlock();
+  }, []);
+
+  const speakText = useCallback((text: string, id: number) => {
+    void playerRef.current?.play(id, text);
+  }, []);
+
+  const handleListen = useCallback((text: string, id: number) => {
+    const player = playerRef.current;
+    if (!player) return;
+    if (playback?.id === id) {
+      if (playback.state === "playing") player.pause();
+      else if (playback.state === "paused") player.resume();
+      else player.stop();
+      return;
+    }
+    player.unlock();
+    void player.play(id, text);
+  }, [playback]);
+
+  const toggleVoice = useCallback(() => {
+    const next = !voiceEnabled;
+    setVoiceEnabled(next);
+    try {
+      localStorage.setItem(STORAGE_KEY_VOICE, next ? "1" : "0");
+    } catch {
+      // stockage indisponible : le choix vaut pour cette session seulement
+    }
+    if (next) unlockAudio();
+    else stopSpeaking();
+  }, [voiceEnabled, unlockAudio, stopSpeaking]);
+
   const handleRestart = useCallback(() => {
     if (!window.confirm("Effacer la conversation et recommencer ?")) return;
     // Sauvegarder la session courante avant de tout effacer
@@ -226,7 +282,7 @@ export default function ChatWindow() {
     setActiveExercice(null);
     setShowFeedback(false);
     setFeedbackDone(false);
-    window.speechSynthesis?.cancel();
+    stopSpeaking();
     clearSession();
     localStorage.removeItem(STORAGE_KEY_MESSAGES);
     localStorage.removeItem(STORAGE_KEY_EMOTION);
@@ -240,7 +296,7 @@ export default function ChatWindow() {
     setCrisisDismissed(false);
     setCrisisLevel("none");
     setShowMenu(false);
-  }, []);
+  }, [stopSpeaking]);
 
   const handleShare = useCallback(async () => {
     setShowMenu(false);
@@ -259,39 +315,6 @@ export default function ChatWindow() {
       setTimeout(() => setShareToast(false), 2500);
     }
   }, [messages]);
-
-  const speakText = useCallback(
-    (text: string) => {
-      if (!voiceEnabled || typeof window === "undefined") return;
-      const synth = window.speechSynthesis;
-      synth.cancel();
-      const clean = text.replace(/[🌿🤝💛📞🎤😌😰😢😤😊]/g, "").replace(/\n+/g, " ").trim();
-      const utterance = new SpeechSynthesisUtterance(clean);
-      utterance.lang = "fr-FR";
-      utterance.rate = 0.9;
-      utterance.pitch = 1.1;
-      utterance.volume = 1;
-      const assignVoiceAndSpeak = () => {
-        const voices = synth.getVoices();
-        const frVoice = voices.find((v) => v.lang.startsWith("fr")) ?? null;
-        if (frVoice) utterance.voice = frVoice;
-        utterance.onstart = () => setIsSpeaking(true);
-        utterance.onend = () => setIsSpeaking(false);
-        utterance.onerror = () => setIsSpeaking(false);
-        synth.speak(utterance);
-      };
-
-      // iOS Safari charge les voix de façon asynchrone
-      if (synth.getVoices().length > 0) {
-        assignVoiceAndSpeak();
-      } else {
-        synth.addEventListener("voiceschanged", assignVoiceAndSpeak, { once: true });
-        // Fallback si voiceschanged ne se déclenche pas (certains navigateurs)
-        setTimeout(assignVoiceAndSpeak, 200);
-      }
-    },
-    [voiceEnabled]
-  );
 
   const startListening = useCallback(() => {
     const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition;
@@ -350,6 +373,10 @@ export default function ChatWindow() {
     const text = input.trim();
     if (!text || isLoading) return;
 
+    // Envoyer coupe la lecture ; ce geste sert aussi à débloquer l'audio (iOS)
+    stopSpeaking();
+    if (voiceEnabled) unlockAudio();
+
     // Démarre le chrono à la toute première réponse utilisateur
     if (sessionStartRef.current === null) {
       sessionStartRef.current = Date.now();
@@ -390,12 +417,13 @@ export default function ChatWindow() {
         setActiveExercice(exercice);
       }
 
+      const replyId = Date.now();
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: cleanText, timestamp: Date.now() },
+        { role: "assistant", content: cleanText, timestamp: replyId },
       ]);
 
-      speakText(cleanText);
+      if (voiceEnabled) speakText(cleanText, replyId);
 
       if (data.crisisLevel !== "none") {
         setCrisisLevel(data.crisisLevel);
@@ -414,7 +442,7 @@ export default function ChatWindow() {
       setIsLoading(false);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [input, isLoading, messages, userName, speakText, updateEtat]);
+  }, [input, isLoading, messages, userName, voiceEnabled, stopSpeaking, unlockAudio, speakText, updateEtat]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -541,11 +569,10 @@ export default function ChatWindow() {
 
         {/* Bouton voix */}
         <button
-          onClick={() => {
-            setVoiceEnabled((v) => !v);
-            if (isSpeaking) window.speechSynthesis?.cancel();
-          }}
-          title={voiceEnabled ? "Désactiver la voix" : "Activer la voix"}
+          onClick={toggleVoice}
+          title={voiceEnabled ? "Désactiver la lecture automatique" : "Activer la lecture automatique"}
+          aria-label={voiceEnabled ? "Désactiver la lecture automatique" : "Activer la lecture automatique"}
+          aria-pressed={voiceEnabled}
           style={{
             width: 48,
             height: 48,
@@ -828,16 +855,28 @@ export default function ChatWindow() {
                     {formatTime(msg.timestamp)}
                   </span>
                   {msg.role === "assistant" && (
+                    <ListenButton
+                      playback={playback?.id === msg.timestamp ? playback : null}
+                      onClick={() => handleListen(msg.content, msg.timestamp)}
+                      theme={theme}
+                    />
+                  )}
+                  {msg.role === "assistant" && (
                     <button
                       onClick={() => handleSavePhrase(msg.content, i)}
                       title={savedTexts.has(msg.content) ? "Sauvegardé" : "Sauvegarder cette phrase"}
+                      aria-label={savedTexts.has(msg.content) ? "Phrase sauvegardée" : "Sauvegarder cette phrase"}
                       style={{
                         background: "transparent",
                         border: "none",
                         cursor: savedTexts.has(msg.content) ? "default" : "pointer",
                         fontSize: 13,
                         lineHeight: 1,
-                        padding: "2px 3px",
+                        minWidth: 44,
+                        minHeight: 44,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                         opacity: savedTexts.has(msg.content) ? 1 : 0.28,
                         transition: "opacity 0.25s",
                         animation: pulsingIdx === i ? "heart-pulse 0.65s ease-out" : "none",
@@ -961,6 +1000,7 @@ export default function ChatWindow() {
             ref={inputRef}
             value={input}
             onChange={(e) => {
+              if (playback) stopSpeaking();
               setInput(e.target.value);
               e.target.style.height = "auto";
               e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
@@ -1026,6 +1066,9 @@ export default function ChatWindow() {
         }
         textarea::placeholder { color: inherit; opacity: 0.35; }
         * { box-sizing: border-box; }
+        @keyframes tts-spin {
+          to { transform: rotate(360deg); }
+        }
         @keyframes heart-pulse {
           0%   { transform: scale(1); }
           40%  { transform: scale(1.65); }
@@ -1052,5 +1095,68 @@ export default function ChatWindow() {
         />
       )}
     </div>
+  );
+}
+
+const ICON_PATHS = {
+  play: "M8 5v14l11-7z",
+  pause: "M6 5h4v14H6zM14 5h4v14h-4z",
+  stop: "M6 6h12v12H6z",
+};
+
+function ListenButton({
+  playback,
+  onClick,
+  theme,
+}: {
+  playback: Playback | null;
+  onClick: () => void;
+  theme: ColorTheme;
+}) {
+  const state = playback?.state ?? "idle";
+  const { label, aria, icon } =
+    state === "loading"
+      ? { label: "Chargement…", aria: "Arrêter le chargement", icon: null }
+      : state === "playing"
+        ? playback?.pausable
+          ? { label: "Pause", aria: "Mettre en pause", icon: ICON_PATHS.pause }
+          : { label: "Arrêter", aria: "Arrêter la lecture", icon: ICON_PATHS.stop }
+        : state === "paused"
+          ? { label: "Reprendre", aria: "Reprendre la lecture", icon: ICON_PATHS.play }
+          : { label: "Écouter", aria: "Écouter ce message", icon: ICON_PATHS.play };
+  const active = state !== "idle";
+
+  return (
+    <button
+      onClick={onClick}
+      aria-label={aria}
+      aria-busy={state === "loading"}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        minWidth: 44,
+        minHeight: 44,
+        padding: "0 10px",
+        background: active ? `${theme.accent}30` : "transparent",
+        border: "none",
+        borderRadius: 100,
+        color: active ? theme.dotColor : theme.textMuted,
+        fontSize: 12,
+        cursor: "pointer",
+        transition: "background 0.2s, color 0.2s",
+      }}
+    >
+      {icon ? (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d={icon} />
+        </svg>
+      ) : (
+        <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" style={{ animation: "tts-spin 0.9s linear infinite" }}>
+          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="40 20" strokeLinecap="round" />
+        </svg>
+      )}
+      {label}
+    </button>
   );
 }
