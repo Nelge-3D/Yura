@@ -30,6 +30,7 @@ interface SpeechRecognitionErrorEvent extends Event {
 interface SpeechRecognition extends EventTarget {
   lang: string;
   interimResults: boolean;
+  continuous: boolean;
   maxAlternatives: number;
   start(): void;
   stop(): void;

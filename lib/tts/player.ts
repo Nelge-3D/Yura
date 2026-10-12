@@ -32,6 +32,12 @@ export class TtsPlayer {
   private geminiOff = false;
   private audioUnlocked = false;
   private speechUnlocked = false;
+  // Résout la promesse renvoyée par play() quand la lecture se termine ou est arrêtée
+  private resolveDone: (() => void) | null = null;
+  // Analyse du signal (mode vocal) : sert à animer l'orbe au rythme de la voix
+  private audioCtx: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
+  private samples: Uint8Array<ArrayBuffer> | null = null;
 
   constructor(listener: Listener) {
     this.listener = listener;
@@ -64,6 +70,46 @@ export class TtsPlayer {
       silent.volume = 0;
       window.speechSynthesis.speak(silent);
     }
+  }
+
+  // À appeler pendant un geste. Une fois activé, le son passe par Web Audio :
+  // réservé au mode vocal pour ne pas exposer le chat texte aux suspensions d'AudioContext.
+  enableAnalyser(): void {
+    if (typeof window === "undefined") return;
+    if (!this.audioCtx) {
+      const Ctx =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctx) return;
+      try {
+        const ctx = new Ctx();
+        const source = ctx.createMediaElementSource(this.ensureAudio());
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 1024;
+        source.connect(analyser);
+        analyser.connect(ctx.destination);
+        this.audioCtx = ctx;
+        this.analyser = analyser;
+        this.samples = new Uint8Array(new ArrayBuffer(analyser.fftSize));
+      } catch {
+        return;
+      }
+    }
+    this.audioCtx.resume().catch(() => {});
+  }
+
+  // Intensité de la voix entre 0 et 1, lue à chaque image par l'orbe
+  level(): number {
+    if (!this.current || this.current.state !== "playing") return 0;
+    if (this.current.pausable && this.analyser && this.samples) {
+      this.analyser.getByteTimeDomainData(this.samples);
+      let sum = 0;
+      for (const v of this.samples) sum += ((v - 128) / 128) ** 2;
+      return Math.min(1, Math.sqrt(sum / this.samples.length) * 4);
+    }
+    // Voix du navigateur : pas d'accès au signal, on simule une pulsation de parole
+    const t = performance.now() / 1000;
+    return 0.3 + 0.3 * Math.abs(Math.sin(t * 5.3) * Math.sin(t * 2.1 + 1));
   }
 
   private async fetchAudio(id: number, text: string): Promise<string | null> {
@@ -106,11 +152,29 @@ export class TtsPlayer {
     }
   }
 
-  async play(id: number, text: string): Promise<void> {
+  // Lance la lecture ; la promesse se résout à la fin de la lecture (naturelle, erreur ou arrêt).
+  play(id: number, text: string): Promise<void> {
     this.stop();
     const token = this.token;
+    return new Promise<void>((resolve) => {
+      this.resolveDone = resolve;
+      void this.start(token, id, text);
+    });
+  }
+
+  private finish(token: number) {
+    if (token !== this.token) return;
+    this.set(null);
+    this.resolveDone?.();
+    this.resolveDone = null;
+  }
+
+  private async start(token: number, id: number, text: string): Promise<void> {
     const clean = cleanTextForSpeech(text);
-    if (!clean) return;
+    if (!clean) {
+      this.finish(token);
+      return;
+    }
 
     let url = this.cache.get(id) ?? null;
     if (!url && !this.geminiOff) {
@@ -122,10 +186,9 @@ export class TtsPlayer {
     if (url) {
       const audio = this.ensureAudio();
       audio.src = url;
-      audio.onended = () => {
-        if (token === this.token) this.set(null);
-      };
+      audio.onended = () => this.finish(token);
       try {
+        if (this.audioCtx && this.audioCtx.state !== "running") await this.audioCtx.resume();
         this.set({ id, state: "playing", pausable: true });
         await audio.play();
         return;
@@ -136,13 +199,11 @@ export class TtsPlayer {
     }
 
     if (!isWebSpeechAvailable()) {
-      this.set(null);
+      this.finish(token);
       return;
     }
     this.set({ id, state: "playing", pausable: false });
-    this.stopWebSpeech = speakWithWebSpeech(clean, () => {
-      if (token === this.token) this.set(null);
-    });
+    this.stopWebSpeech = speakWithWebSpeech(clean, () => this.finish(token));
   }
 
   pause(): void {
@@ -159,9 +220,7 @@ export class TtsPlayer {
     if (!this.current || this.current.state !== "paused" || !this.audio) return;
     const token = this.token;
     this.set({ ...this.current, state: "playing" });
-    this.audio.play().catch(() => {
-      if (token === this.token) this.set(null);
-    });
+    this.audio.play().catch(() => this.finish(token));
   }
 
   stop(): void {
@@ -173,11 +232,16 @@ export class TtsPlayer {
     this.stopWebSpeech?.();
     this.stopWebSpeech = null;
     if (this.current) this.set(null);
+    this.resolveDone?.();
+    this.resolveDone = null;
   }
 
   dispose(): void {
     this.stop();
     this.cache.forEach((url) => URL.revokeObjectURL(url));
     this.cache.clear();
+    this.audioCtx?.close().catch(() => {});
+    this.audioCtx = null;
+    this.analyser = null;
   }
 }

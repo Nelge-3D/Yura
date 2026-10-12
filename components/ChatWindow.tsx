@@ -5,6 +5,7 @@ import { getUserName, setUserName, getOrCreateSessionId, clearSession } from "@/
 import { CrisisLevel } from "@/lib/crisis";
 import { detectEmotion, extractEmotionFromYura, EtatEmotionnel, ExerciceType } from "@/lib/emotionDetector";
 import ExerciceGuide from "@/components/ExerciceGuide";
+import VoiceMode from "@/components/voice/VoiceMode";
 import { getTheme, getLightTheme, ColorTheme } from "@/lib/colorThemes";
 import { logMood } from "@/lib/moodLog";
 import { sauvegarderSession, getLastSession } from "@/lib/journal";
@@ -73,6 +74,7 @@ export default function ChatWindow() {
   const [showMenu, setShowMenu] = useState(false);
   const [activeExercice, setActiveExercice] = useState<ExerciceType | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
   const [feedbackDone, setFeedbackDone] = useState(false);
   const [savedTexts, setSavedTexts] = useState<Set<string>>(new Set());
   const [pulsingIdx, setPulsingIdx] = useState<number | null>(null);
@@ -369,9 +371,15 @@ export default function ChatWindow() {
     setTimeout(() => setPulsingIdx(null), 700);
   }, [savedTexts]);
 
-  const sendMessage = useCallback(async () => {
-    const text = input.trim();
-    if (!text || isLoading) return;
+  // text : message dicté en mode vocal (sinon le champ de saisie).
+  // autoSpeak : en mode vocal, c'est le mode vocal qui gère la lecture.
+  // Renvoie la réponse de YURA (ou null en cas d'erreur).
+  const sendMessage = useCallback(async (
+    override?: string,
+    autoSpeak = true
+  ): Promise<{ id: number; content: string } | null> => {
+    const text = (override ?? input).trim();
+    if (!text || isLoading) return null;
 
     // Envoyer coupe la lecture ; ce geste sert aussi à débloquer l'audio (iOS)
     stopSpeaking();
@@ -423,12 +431,13 @@ export default function ChatWindow() {
         { role: "assistant", content: cleanText, timestamp: replyId },
       ]);
 
-      if (voiceEnabled) speakText(cleanText, replyId);
+      if (autoSpeak && voiceEnabled) speakText(cleanText, replyId);
 
       if (data.crisisLevel !== "none") {
         setCrisisLevel(data.crisisLevel);
         updateEtat("crise");
       }
+      return { id: replyId, content: cleanText };
     } catch (err) {
       const msg =
         err instanceof Error
@@ -438,11 +447,25 @@ export default function ChatWindow() {
         ...prev,
         { role: "assistant", content: msg, timestamp: Date.now() },
       ]);
+      return null;
     } finally {
       setIsLoading(false);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      // En mode vocal, ne pas faire surgir le clavier derrière l'écran vocal
+      if (autoSpeak) setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [input, isLoading, messages, userName, voiceEnabled, stopSpeaking, unlockAudio, speakText, updateEtat]);
+
+  // Ouvert par un clic : ce geste débloque l'audio (iOS) et l'analyse du son pour l'orbe
+  const openVoiceMode = useCallback(() => {
+    const player = playerRef.current;
+    if (!player) return;
+    player.stop();
+    player.unlock();
+    player.enableAnalyser();
+    setVoiceMode(true);
+  }, []);
+
+  const sendVoiceMessage = useCallback((text: string) => sendMessage(text, false), [sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -1018,29 +1041,63 @@ export default function ChatWindow() {
             }}
           />
 
-          <button
-            onClick={sendMessage}
-            disabled={isLoading || !input.trim()}
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 14,
-              background: isLoading || !input.trim() ? `${theme.accent}30` : theme.accent,
-              color: theme.textPrimary,
-              border: "none",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: isLoading || !input.trim() ? "not-allowed" : "pointer",
-              opacity: isLoading || !input.trim() ? 0.4 : 1,
-              flexShrink: 0,
-              transition: "all 0.2s ease",
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M14 8L2 2l2.5 6L2 14l12-6z" fill="currentColor" />
-            </svg>
-          </button>
+          {/* Champ vide : le bouton ouvre le mode vocal (comme ChatGPT) ; sinon il envoie */}
+          {!input.trim() && hasMicSupport ? (
+            <button
+              onClick={openVoiceMode}
+              disabled={isLoading}
+              title="Parler avec YURA"
+              aria-label="Ouvrir le mode vocal"
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 14,
+                background: theme.accent,
+                color: theme.textPrimary,
+                border: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: isLoading ? "not-allowed" : "pointer",
+                opacity: isLoading ? 0.4 : 1,
+                flexShrink: 0,
+                transition: "all 0.2s ease",
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <rect x="3" y="10" width="2.5" height="4" rx="1.25" />
+                <rect x="7.5" y="6" width="2.5" height="12" rx="1.25" />
+                <rect x="12" y="3" width="2.5" height="18" rx="1.25" />
+                <rect x="16.5" y="7" width="2.5" height="10" rx="1.25" />
+                <rect x="21" y="10.5" width="2" height="3" rx="1" />
+              </svg>
+            </button>
+          ) : (
+            <button
+              onClick={() => sendMessage()}
+              disabled={isLoading || !input.trim()}
+              aria-label="Envoyer"
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 14,
+                background: isLoading || !input.trim() ? `${theme.accent}30` : theme.accent,
+                color: theme.textPrimary,
+                border: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: isLoading || !input.trim() ? "not-allowed" : "pointer",
+                opacity: isLoading || !input.trim() ? 0.4 : 1,
+                flexShrink: 0,
+                transition: "all 0.2s ease",
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M14 8L2 2l2.5 6L2 14l12-6z" fill="currentColor" />
+              </svg>
+            </button>
+          )}
         </div>
 
         <div className="chat-disclaimer text-xs text-center mt-2" style={{ color: theme.textMuted }}>
@@ -1076,6 +1133,17 @@ export default function ChatWindow() {
           100% { transform: scale(1); }
         }
       `}</style>
+
+      {/* Mode vocal plein écran */}
+      {voiceMode && playerRef.current && (
+        <VoiceMode
+          player={playerRef.current}
+          playbackState={playback?.state ?? null}
+          onSend={sendVoiceMessage}
+          onClose={() => setVoiceMode(false)}
+          showCrisis={showCrisisBanner}
+        />
+      )}
 
       {/* Onboarding */}
       {showOnboarding && (
