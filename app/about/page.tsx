@@ -44,7 +44,7 @@ export default function AboutPage() {
           background: "#0A1A14",
         }}
       >
-        <Link href="/" style={{ color: DOT, fontWeight: 700, fontSize: 18, textDecoration: "none" }}>
+        <Link href="/" className="tap-target" style={{ color: DOT, fontWeight: 700, fontSize: 18, textDecoration: "none" }}>
           🌿 YURA
         </Link>
         <Link
@@ -205,8 +205,8 @@ export default function AboutPage() {
           Parler à YURA
         </Link>
         <div style={{ marginTop: 24, display: "flex", gap: 24, justifyContent: "center" }}>
-          <Link href="/privacy" style={{ color: MUTED, fontSize: 13, textDecoration: "none" }}>Confidentialité</Link>
-          <Link href="/teleconsultation" style={{ color: MUTED, fontSize: 13, textDecoration: "none" }}>Téléconsultation</Link>
+          <Link href="/privacy" className="tap-target" style={{ color: MUTED, fontSize: 13, textDecoration: "none" }}>Confidentialité</Link>
+          <Link href="/teleconsultation" className="tap-target" style={{ color: MUTED, fontSize: 13, textDecoration: "none" }}>Téléconsultation</Link>
         </div>
       </section>
     </main>

@@ -529,6 +529,8 @@ export default function ChatWindow() {
               fontSize: 18,
               padding: "4px 8px",
               lineHeight: 1,
+              minWidth: 44,
+              minHeight: 44,
             }}
             aria-label="Fermer"
           >
@@ -539,13 +541,14 @@ export default function ChatWindow() {
 
       {/* Header */}
       <div
-        className="flex items-center gap-3 px-4 py-3 border-b"
+        className="chat-header px-4 py-3 border-b"
         style={{
           background: theme.bgHeader,
           borderColor: `${theme.accent}30`,
           transition: "background-color 2s ease, border-color 2s ease",
         }}
       >
+        <div className="chat-column flex items-center gap-3">
         <YuraAvatar size={40} animate />
         <div className="flex-1 min-w-0">
           <h2 className="font-semibold text-sm" style={{ color: theme.textPrimary }}>
@@ -705,6 +708,7 @@ export default function ChatWindow() {
             </div>
           )}
         </div>
+        </div>
       </div>
 
       {/* Toast copié */}
@@ -730,102 +734,102 @@ export default function ChatWindow() {
         </div>
       )}
 
-      {/* Prompt prénom */}
-      {showNamePrompt && (
-        <div
-          className="mx-4 mt-4 p-4 rounded-2xl border"
-          style={{
-            background: `${theme.accent}15`,
-            borderColor: `${theme.accent}30`,
-          }}
-        >
-          <p className="text-sm mb-3" style={{ color: theme.textSecondary }}>
-            Comment voudrais-tu que je t&apos;appelle ? (optionnel)
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSetName()}
-              placeholder="Ton prénom ou surnom…"
-              className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
-              style={{
-                background: `${theme.accent}20`,
-                border: `1px solid ${theme.accent}40`,
-                color: theme.textPrimary,
-              }}
-            />
-            <button
-              onClick={handleSetName}
-              style={{
-                padding: "8px 16px",
-                background: theme.accent,
-                color: theme.textPrimary,
-                border: "none",
-                borderRadius: 12,
-                fontSize: 14,
-                cursor: "pointer",
-                minHeight: 48,
-              }}
-            >
-              OK
-            </button>
-            <button
-              onClick={() => setShowNamePrompt(false)}
-              style={{
-                padding: "8px 16px",
-                background: "rgba(255,255,255,0.08)",
-                color: theme.textMuted,
-                border: "none",
-                borderRadius: 12,
-                fontSize: 14,
-                cursor: "pointer",
-                minHeight: 48,
-              }}
-            >
-              Passer
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Mood picker */}
-      {showMoodPicker && (
-        <div className="mx-4 mt-4">
-          <p className="text-xs mb-2" style={{ color: theme.textMuted }}>
-            Comment tu te sens en ce moment ?
-          </p>
-          <div className="flex gap-2 flex-wrap">
-            {MOOD_OPTIONS.map((opt) => (
-              <button
-                key={opt.etat}
-                onClick={() => handleMoodPick(opt.etat)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "8px 14px",
-                  background: `${theme.accent}20`,
-                  border: `1px solid ${theme.accent}35`,
-                  borderRadius: 100,
-                  color: theme.textSecondary,
-                  fontSize: 13,
-                  cursor: "pointer",
-                  minHeight: 48,
-                  transition: "all 0.2s ease",
-                }}
-              >
-                <span style={{ fontSize: 16 }}>{opt.emoji}</span>
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollBehavior: "smooth" }}>
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4" style={{ scrollBehavior: "smooth" }}>
+        <div className="chat-column">
+          {/* Prompt prénom */}
+          {showNamePrompt && (
+            <div
+              className="mb-4 p-4 rounded-2xl border"
+              style={{
+                background: `${theme.accent}15`,
+                borderColor: `${theme.accent}30`,
+              }}
+            >
+              <p className="text-sm mb-3" style={{ color: theme.textSecondary }}>
+                Comment voudrais-tu que je t&apos;appelle ? (optionnel)
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSetName()}
+                  placeholder="Ton prénom ou surnom…"
+                  className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
+                  style={{
+                    background: `${theme.accent}20`,
+                    border: `1px solid ${theme.accent}40`,
+                    color: theme.textPrimary,
+                  }}
+                />
+                <button
+                  onClick={handleSetName}
+                  style={{
+                    padding: "8px 16px",
+                    background: theme.accent,
+                    color: theme.textPrimary,
+                    border: "none",
+                    borderRadius: 12,
+                    fontSize: 14,
+                    cursor: "pointer",
+                    minHeight: 48,
+                  }}
+                >
+                  OK
+                </button>
+                <button
+                  onClick={() => setShowNamePrompt(false)}
+                  style={{
+                    padding: "8px 16px",
+                    background: "rgba(255,255,255,0.08)",
+                    color: theme.textMuted,
+                    border: "none",
+                    borderRadius: 12,
+                    fontSize: 14,
+                    cursor: "pointer",
+                    minHeight: 48,
+                  }}
+                >
+                  Passer
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Mood picker */}
+          {showMoodPicker && (
+            <div className="mb-4">
+              <p className="text-xs mb-2" style={{ color: theme.textMuted }}>
+                Comment tu te sens en ce moment ?
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {MOOD_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.etat}
+                    onClick={() => handleMoodPick(opt.etat)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "8px 14px",
+                      background: `${theme.accent}20`,
+                      border: `1px solid ${theme.accent}35`,
+                      borderRadius: 100,
+                      color: theme.textSecondary,
+                      fontSize: 13,
+                      cursor: "pointer",
+                      minHeight: 48,
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    <span style={{ fontSize: 16 }}>{opt.emoji}</span>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         <div className="space-y-4">
           {messages.map((msg, i) => (
             <div
@@ -943,15 +947,18 @@ export default function ChatWindow() {
           )}
           <div ref={bottomRef} />
         </div>
+        </div>
       </div>
 
       {/* Exercice TCC */}
       {activeExercice && (
+        <div className="chat-panel chat-column">
         <ExerciceGuide
           type={activeExercice}
           onDone={() => setActiveExercice(null)}
           currentTheme={theme}
         />
+        </div>
       )}
 
       {/* Feedback de fin de session */}
@@ -966,11 +973,13 @@ export default function ChatWindow() {
             : 0,
         };
         return (
+          <div className="chat-panel chat-column">
           <FeedbackFin
             currentTheme={theme}
             sessionData={sessionData}
             onDone={() => { setShowFeedback(false); setFeedbackDone(true); }}
           />
+          </div>
         );
       })()}
 
@@ -985,7 +994,7 @@ export default function ChatWindow() {
         }}
       >
         <div
-          className="flex gap-2 items-end rounded-2xl p-2"
+          className="chat-column flex gap-2 items-end rounded-2xl p-2"
           style={{
             background: `${theme.accent}15`,
             border: `1px solid ${theme.accent}35`,
@@ -1103,11 +1112,11 @@ export default function ChatWindow() {
         <div className="chat-disclaimer text-xs text-center mt-2" style={{ color: theme.textMuted }}>
           Conversation privée · Aucune donnée nominative collectée
           <span style={{ margin: "0 8px", opacity: 0.4 }}>·</span>
-          <a href="/about" style={{ color: theme.textMuted, textDecoration: "none", opacity: 0.7 }}>À propos</a>
+          <a href="/about" className="tap-target" style={{ color: theme.textMuted, textDecoration: "none", opacity: 0.7 }}>À propos</a>
           <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span>
-          <a href="/teleconsultation" style={{ color: theme.textMuted, textDecoration: "none", opacity: 0.7 }}>Téléconsultation</a>
+          <a href="/teleconsultation" className="tap-target" style={{ color: theme.textMuted, textDecoration: "none", opacity: 0.7 }}>Téléconsultation</a>
           <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span>
-          <a href="/privacy" style={{ color: theme.textMuted, textDecoration: "none", opacity: 0.7 }}>Confidentialité</a>
+          <a href="/privacy" className="tap-target" style={{ color: theme.textMuted, textDecoration: "none", opacity: 0.7 }}>Confidentialité</a>
         </div>
       </div>
 

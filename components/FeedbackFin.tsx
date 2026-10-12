@@ -71,7 +71,7 @@ export default function FeedbackFin({ onDone, currentTheme, sessionData }: Props
         </p>
         <button
           onClick={onDone}
-          style={{ background: "transparent", border: "none", color: currentTheme.textMuted, cursor: "pointer", fontSize: 20, lineHeight: 1, padding: "2px 6px" }}
+          style={{ background: "transparent", border: "none", color: currentTheme.textMuted, cursor: "pointer", fontSize: 20, lineHeight: 1, padding: "2px 6px", minWidth: 44, minHeight: 44 }}
           title="Passer"
         >
           ×

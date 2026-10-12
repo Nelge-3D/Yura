@@ -69,7 +69,7 @@ export default function PrivacyPage() {
           background: "#0A1A14",
         }}
       >
-        <Link href="/" style={{ color: DOT, fontWeight: 700, fontSize: 18, textDecoration: "none" }}>
+        <Link href="/" className="tap-target" style={{ color: DOT, fontWeight: 700, fontSize: 18, textDecoration: "none" }}>
           🌿 YURA
         </Link>
         <Link
@@ -140,8 +140,8 @@ export default function PrivacyPage() {
         </div>
 
         <div style={{ textAlign: "center", marginTop: 48, display: "flex", gap: 24, justifyContent: "center" }}>
-          <Link href="/about" style={{ color: MUTED, fontSize: 14, textDecoration: "none" }}>À propos</Link>
-          <Link href="/chat" style={{ color: MUTED, fontSize: 14, textDecoration: "none" }}>Retour au chat</Link>
+          <Link href="/about" className="tap-target" style={{ color: MUTED, fontSize: 14, textDecoration: "none" }}>À propos</Link>
+          <Link href="/chat" className="tap-target" style={{ color: MUTED, fontSize: 14, textDecoration: "none" }}>Retour au chat</Link>
         </div>
       </section>
     </main>

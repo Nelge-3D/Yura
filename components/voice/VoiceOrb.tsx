@@ -71,6 +71,8 @@ export default function VoiceOrb({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
+  // Redimensionne le canvas quand l'orbe change de taille (rotation, fenêtre redimensionnée)
+  const resizeRef = useRef<(px: number) => void>(() => {});
   // Lus à chaque image sans relancer la scène WebGL
   const modeRef = useRef(mode);
   const getLevelRef = useRef(getLevel);
@@ -98,8 +100,11 @@ export default function VoiceOrb({
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    uniforms.resolution.value.set(renderer.domElement.width, renderer.domElement.height);
+    resizeRef.current = (px: number) => {
+      renderer.setSize(px, px);
+      uniforms.resolution.value.set(renderer.domElement.width, renderer.domElement.height);
+    };
+    resizeRef.current(container.clientWidth);
     container.appendChild(renderer.domElement);
 
     let energy = 0;
@@ -122,6 +127,7 @@ export default function VoiceOrb({
     animate();
 
     return () => {
+      resizeRef.current = () => {};
       cancelAnimationFrame(frame);
       if (renderer.domElement.parentNode === container) container.removeChild(renderer.domElement);
       renderer.dispose();
@@ -129,6 +135,10 @@ export default function VoiceOrb({
       material.dispose();
     };
   }, []);
+
+  useEffect(() => {
+    resizeRef.current(size);
+  }, [size]);
 
   return (
     <div style={{ position: "relative", width: size, height: size }}>

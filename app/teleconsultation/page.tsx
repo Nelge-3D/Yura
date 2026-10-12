@@ -157,7 +157,7 @@ export default function TeleconsultationPage() {
           backdropFilter: "blur(8px)",
         }}
       >
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: "0.75rem", textDecoration: "none" }}>
+        <Link href="/" className="tap-target" style={{ display: "flex", alignItems: "center", gap: "0.75rem", textDecoration: "none" }}>
           <div
             style={{
               width: 38,

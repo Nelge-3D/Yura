@@ -144,7 +144,9 @@ export default function VoiceMode({ player, playbackState, onSend, onClose, show
   useEffect(() => {
     activeRef.current = true;
     listenRef.current();
-    const resize = () => setOrbSize(Math.round(Math.min(window.innerWidth * 0.7, window.innerHeight * 0.4, 320)));
+    // Place réservée au titre, au texte et au bouton fermer ; jamais moins de 120 px
+    const resize = () =>
+      setOrbSize(Math.round(Math.max(120, Math.min(window.innerWidth * 0.7, window.innerHeight - 240, 320))));
     resize();
     window.addEventListener("resize", resize);
     return () => {

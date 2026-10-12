@@ -89,3 +89,19 @@ html { scroll-behavior: smooth; }
 .chat-bubble { max-width: 82%; }
 @media (min-width: 640px)  { .chat-bubble { max-width: 72%; } }
 @media (min-width: 1024px) { .chat-bubble { max-width: 62%; } }
+
+/* Colonne de lecture centrée : sur tablette et PC la conversation ne s'étire pas sur tout l'écran */
+.chat-column { width: 100%; max-width: 760px; margin-left: auto; margin-right: auto; }
+
+/* Panneaux au-dessus de la saisie (exercice, feedback) : ils défilent au lieu d'écraser la conversation */
+.chat-panel { flex-shrink: 0; max-height: 45dvh; overflow-y: auto; }
+
+/* Téléphone en paysage / petites hauteurs : header compact, la zone de saisie reste visible */
+@media (max-height: 500px) {
+  .chat-header { padding-top: 6px !important; padding-bottom: 6px !important; }
+  .chat-disclaimer { display: none !important; }
+  .chat-panel { max-height: 38dvh; }
+}
+
+/* Liens texte (navigation, pied de page) : zone tactile d'au moins 44 px sans changer leur apparence */
+.tap-target { display: inline-flex !important; align-items: center; min-height: 44px; }

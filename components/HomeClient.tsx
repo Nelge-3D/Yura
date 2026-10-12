@@ -603,6 +603,7 @@ export default function HomeClient() {
             <Link
               key={l.href}
               href={l.href}
+              className="tap-target"
               style={{ color: "rgba(255,255,255,0.35)", fontSize: 13, textDecoration: "none", transition: "color 0.2s" }}
               onMouseEnter={(e) => ((e.target as HTMLElement).style.color = "#7fb89a")}
               onMouseLeave={(e) => ((e.target as HTMLElement).style.color = "rgba(255,255,255,0.35)")}
