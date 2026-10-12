@@ -262,6 +262,17 @@ export default function ChatWindow() {
     else stopSpeaking();
   }, [voiceEnabled, unlockAudio, stopSpeaking]);
 
+  // Humeur choisie sur l'accueil (/chat?humeur=triste) : point de départ de la conversation
+  useEffect(() => {
+    if (!hydrated) return;
+    const humeur = new URLSearchParams(window.location.search).get("humeur");
+    const picked = MOOD_OPTIONS.find((o) => o.etat === humeur);
+    if (!picked) return;
+    updateEtat(picked.etat);
+    setShowMoodPicker(false);
+    window.history.replaceState(null, "", "/chat");
+  }, [hydrated, updateEtat]);
+
   const handleRestart = useCallback(() => {
     if (!window.confirm("Effacer la conversation et recommencer ?")) return;
     // Sauvegarder la session courante avant de tout effacer

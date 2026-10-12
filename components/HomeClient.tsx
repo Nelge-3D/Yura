@@ -1,168 +1,52 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ShaderAnimation } from "@/components/ui/shader-animation";
+import dynamic from "next/dynamic";
 import PwaInstallButton from "@/components/PwaInstallButton";
 
-// ─── Chat démo ───────────────────────────────────────────────────────────────
+// L'orbe (WebGL) ne s'affiche que côté navigateur
+const VoiceOrb = dynamic(() => import("@/components/voice/VoiceOrb"), { ssr: false });
 
-const DEMO_SEQUENCES = [
-  [
-    { role: "yura", text: "Mbolo ! Je suis YURA 🌿 Comment s'est passée ta journée ?" },
-    { role: "user", text: "Je me sens vraiment seul en ce moment..." },
-    { role: "yura", text: "Je t'entends. La solitude peut peser lourd. Tu veux me dire ce qui se passe ?" },
-  ],
-  [
-    { role: "yura", text: "Mbolo ! Comment tu vas aujourd'hui ?" },
-    { role: "user", text: "J'ai beaucoup de stress au travail..." },
-    { role: "yura", text: "C'est épuisant de porter ça. Depuis combien de temps tu ressens cette pression ?" },
-  ],
-  [
-    { role: "yura", text: "Je suis là pour t'écouter, sans jugement. 🌿" },
-    { role: "user", text: "Ma famille ne me comprend pas..." },
-    { role: "yura", text: "C'est douloureux de ne pas se sentir compris par ceux qu'on aime. Qu'est-ce qui s'est passé ?" },
-  ],
-];
+// ─── Identité visuelle (ivoire + vert forêt) ──────────────────────────────────
 
-function ChatDemo() {
-  const [visibleMessages, setVisibleMessages] = useState<
-    { role: string; text: string; displayed: string; done: boolean }[]
-  >([]);
-  const [seqIdx, setSeqIdx] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+const C = {
+  ivory: "#FAF8F3",
+  green: "#174C3C",
+  green2: "#477A68",
+  mint: "#E9F2ED",
+  text: "#18221F",
+  muted: "#66736D",
+  warm: "#D99A62",
+  urgent: "#C84E4E",
+  line: "rgba(23,76,60,0.12)",
+};
 
-  const clearTimer = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-  };
+const SERIF = "var(--font-serif), Georgia, serif";
 
-  const runSequence = useCallback((si: number) => {
-    const seq = DEMO_SEQUENCES[si % DEMO_SEQUENCES.length];
-    setVisibleMessages([]);
+// ─── Icônes au trait (remplacent les émojis) ─────────────────────────────────
 
-    let msgIndex = 0;
+const ICONS = {
+  leaf: "M5 19c0-8 5-14 14-14 0 9-6 14-14 14Zm0 0 7-7",
+  shield: "M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6l-7-3Z",
+  mic: "M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Zm-6 8a6 6 0 0 0 12 0M12 17v4",
+  chat: "M4 5h16v11H9l-5 4V5Z",
+  heart: "M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10Z",
+  compass: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm3.5-12.5-2 5-5 2 2-5 5-2Z",
+  people: "M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm-6 9a6 6 0 0 1 12 0M16 5a3 3 0 0 1 0 6m2 9a6 6 0 0 0-3-5",
+  phone: "M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1Z",
+  arrow: "M5 12h14m-5-5 5 5-5 5",
+} as const;
 
-    const showNext = () => {
-      if (msgIndex >= seq.length) {
-        // Pause then next sequence
-        timerRef.current = setTimeout(() => {
-          setSeqIdx((p) => p + 1);
-        }, 3000);
-        return;
-      }
-
-      const msg = seq[msgIndex];
-      const idx = msgIndex;
-      msgIndex++;
-
-      // Add message shell
-      setVisibleMessages((prev) => [
-        ...prev,
-        { role: msg.role, text: msg.text, displayed: "", done: false },
-      ]);
-
-      // Typewriter
-      let charIdx = 0;
-      const speed = msg.role === "user" ? 30 : 22;
-
-      const type = () => {
-        charIdx++;
-        setVisibleMessages((prev) =>
-          prev.map((m, i) =>
-            i === idx
-              ? { ...m, displayed: msg.text.slice(0, charIdx), done: charIdx >= msg.text.length }
-              : m
-          )
-        );
-        if (charIdx < msg.text.length) {
-          timerRef.current = setTimeout(type, speed);
-        } else {
-          timerRef.current = setTimeout(showNext, msg.role === "yura" ? 900 : 600);
-        }
-      };
-
-      timerRef.current = setTimeout(type, msg.role === "yura" ? 400 : 700);
-    };
-
-    showNext();
-  }, []);
-
-  useEffect(() => {
-    runSequence(seqIdx);
-    return clearTimer;
-  }, [seqIdx, runSequence]);
-
+function Icon({ name, size = 22, color = "currentColor" }: { name: keyof typeof ICONS; size?: number; color?: string }) {
   return (
-    <div
-      style={{
-        background: "rgba(13,31,26,0.85)",
-        border: "1px solid rgba(45,106,79,0.4)",
-        borderRadius: 20,
-        padding: "20px 16px",
-        backdropFilter: "blur(10px)",
-        minHeight: 240,
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-        maxWidth: 380,
-        width: "100%",
-      }}
-    >
-      {/* Header chat */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            background: "conic-gradient(from 0deg, #2d5a27, #7fb89a, #c9935a, #4a7c59, #2d5a27)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          <div style={{ width: 25, height: 25, borderRadius: "50%", background: "#0D1F1A", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontFamily: "Georgia,serif", color: "#7fb89a", fontSize: 10, fontWeight: 600 }}>Yu</span>
-          </div>
-        </div>
-        <div>
-          <p style={{ color: "#D8F3DC", fontSize: 13, fontWeight: 600, margin: 0 }}>YURA</p>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#52B788", animation: "pulse 2s infinite" }} />
-            <span style={{ color: "#52796F", fontSize: 11 }}>En ligne</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Messages */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
-        {visibleMessages.map((msg, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
-            <div
-              style={{
-                maxWidth: "82%",
-                padding: "9px 13px",
-                borderRadius: msg.role === "yura" ? "4px 14px 14px 14px" : "14px 4px 14px 14px",
-                background: msg.role === "yura" ? "#1B4332" : "#40916C",
-                border: msg.role === "yura" ? "1px solid #2D6A4F" : "none",
-                color: "#D8F3DC",
-                fontSize: 13,
-                lineHeight: 1.5,
-                animation: "fadeSlide 0.3s ease-out",
-              }}
-            >
-              {msg.displayed}
-              {!msg.done && <span style={{ opacity: 0.5, animation: "blink 0.8s step-end infinite" }}>▌</span>}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d={ICONS[name]} stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
-// ─── Reveal au scroll ─────────────────────────────────────────────────────────
+// ─── Apparition douce au défilement ──────────────────────────────────────────
 
 function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -182,10 +66,12 @@ function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: nu
   return (
     <div
       ref={ref}
+      className="home-reveal"
       style={{
         opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(28px)",
+        transform: visible ? "translateY(0)" : "translateY(20px)",
         transition: `opacity 0.6s ease ${delay}ms, transform 0.6s ease ${delay}ms`,
+        height: "100%",
       }}
     >
       {children}
@@ -193,427 +79,254 @@ function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: nu
   );
 }
 
-// ─── Particules canvas ────────────────────────────────────────────────────────
+// ─── Données ─────────────────────────────────────────────────────────────────
 
-function Particles() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+// Humeurs du chat (EtatEmotionnel) : le choix est transmis à /chat via ?humeur=
+const MOODS = [
+  { label: "Ça va", humeur: "calme" },
+  { label: "Stressé·e", humeur: "anxieux" },
+  { label: "Triste", humeur: "triste" },
+  { label: "En colère", humeur: "en_colere" },
+  { label: "Je ne sais pas", humeur: null },
+] as const;
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+const TRUST = [
+  { icon: "shield", title: "Sans compte", desc: "Aucune inscription, aucune identité demandée. Tu commences quand tu veux, tu arrêtes quand tu veux." },
+  { icon: "mic", title: "Écris ou parle", desc: "À l'écrit, ou à voix haute avec le mode vocal. Jour et nuit, à ton rythme." },
+  { icon: "leaf", title: "Pensé pour le Gabon", desc: "Des mots, des proverbes et des repères qui parlent de chez nous." },
+] as const;
 
-    let W = (canvas.width = canvas.offsetWidth);
-    let H = (canvas.height = canvas.offsetHeight);
+const SITUATIONS = [
+  { feel: "Stress, anxiété", help: "Poser ce que tu ressens et respirer avec un exercice guidé.", humeur: "anxieux" },
+  { feel: "Solitude", help: "Trouver un espace pour parler, à n'importe quelle heure.", humeur: "triste" },
+  { feel: "Tristesse, deuil", help: "Être écouté·e sans jugement, sans devoir te justifier.", humeur: "triste" },
+  { feel: "Relations, famille", help: "Prendre du recul sur ce qui se passe et y voir plus clair.", humeur: null },
+  { feel: "Besoin d'aide humaine", help: "Être orienté·e vers l'aide adaptée, et vers les urgences si besoin.", humeur: null },
+] as const;
 
-    const onResize = () => {
-      W = canvas.width = canvas.offsetWidth;
-      H = canvas.height = canvas.offsetHeight;
-    };
-    window.addEventListener("resize", onResize);
+const JOURNEY = [
+  { num: "01", icon: "chat", title: "Parle", desc: "Dis ce qui te pèse, avec tes mots. YURA écoute et te pose les bonnes questions." },
+  { num: "02", icon: "heart", title: "Comprends", desc: "Exercices de respiration et d'ancrage, journal d'humeur : des outils simples pour aller mieux." },
+  { num: "03", icon: "compass", title: "Obtiens de l'aide", desc: "Quand c'est nécessaire, YURA t'oriente vers des personnes qui peuvent t'aider." },
+] as const;
 
-    const pts = Array.from({ length: 45 }, () => ({
-      x: Math.random() * W,
-      y: Math.random() * H,
-      r: Math.random() * 2.5 + 0.5,
-      vx: (Math.random() - 0.5) * 0.25,
-      vy: -Math.random() * 0.35 - 0.05,
-      alpha: Math.random() * 0.35 + 0.06,
-      color: Math.random() > 0.55 ? "#7fb89a" : "#c9935a",
-    }));
+function chatHref(humeur: string | null) {
+  return humeur ? `/chat?humeur=${humeur}` : "/chat";
+}
 
-    let raf: number;
-    const draw = () => {
-      ctx.clearRect(0, 0, W, H);
-      for (const p of pts) {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = p.color + Math.floor(p.alpha * 255).toString(16).padStart(2, "0");
-        ctx.fill();
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.y < -10) { p.y = H + 10; p.x = Math.random() * W; }
-        if (p.x < -10) p.x = W + 10;
-        if (p.x > W + 10) p.x = -10;
-      }
-      raf = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", onResize); };
-  }, []);
+// ─── Aperçu du chat (premier écran) ──────────────────────────────────────────
 
+function ChatPreview() {
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 0 }}
-    />
+    <div className="home-preview" aria-label="Aperçu d'une conversation avec YURA">
+      <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 14, borderBottom: `1px solid ${C.line}` }}>
+        <div
+          style={{
+            width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+            background: `conic-gradient(from 0deg, ${C.green}, ${C.green2}, ${C.warm}, ${C.green})`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <span style={{ width: 26, height: 26, borderRadius: "50%", background: C.ivory, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: SERIF, fontSize: 11, color: C.green }}>
+            Yu
+          </span>
+        </div>
+        <div>
+          <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: C.text }}>YURA</p>
+          <p style={{ margin: 0, fontSize: 12, color: C.muted, display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.green2 }} />
+            Écoute confidentielle
+          </p>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "18px 0" }}>
+        <div className="home-bubble">Mbolo. Je suis là, prends le temps qu&apos;il te faut.</div>
+        <div className="home-bubble">Comment te sens-tu aujourd&apos;hui ?</div>
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {MOODS.map((m) => (
+          <Link key={m.label} href={chatHref(m.humeur)} className="home-chip">
+            {m.label}
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }
 
-// ─── Données ──────────────────────────────────────────────────────────────────
-
-const steps = [
-  { num: "01", title: "Contact sans friction", desc: "Pas d'inscription, aucune identité demandée. YURA t'accueille chaleureusement.", quote: '"Mbolo ! Comment s\'est passée ta journée ?"', accent: "#7fb89a" },
-  { num: "02", title: "Écoute culturellement ancrée", desc: "TCC simplifiée + références gabonaises : contes, proverbes, symboles des ethnies.", quote: '"Les larmes sont la pluie qui permet à la forêt du cœur de repousser."', accent: "#c9935a" },
-  { num: "03", title: "Escalade intelligente", desc: "Détection discrète de la détresse → proposition progressive d'un accompagnement humain.", quote: '"Je veux te connecter avec quelqu\'un qui peut vraiment t\'aider."', accent: "#e8a84a" },
-  { num: "04", title: "Consultation professionnelle", desc: "Bientôt : téléconsultation ou rendez-vous en présentiel avec des professionnels qualifiés.", quote: "Une plateforme au service de l'accès aux soins mentaux au Gabon.", accent: "#4a7c59" },
-];
-
-const pillars = [
-  { icon: "🌿", title: "Culturellement gabonaise", desc: "Contes, proverbes et références culturelles du Gabon." },
-  { icon: "🔒", title: "Sans compte", desc: "Aucune inscription ni identité demandée pour commencer à parler." },
-  { icon: "🤝", title: "Passerelle humaine", desc: "YURA ne remplace pas le psychologue. Elle tient la main jusqu'à lui." },
-  { icon: "📱", title: "Toujours disponible", desc: "Sur ton téléphone ou ton ordinateur. À l'écrit ou à voix haute. 24h/24, 7j/7." },
-  { icon: "🏥", title: "Renforce le public", desc: "Oriente vers les structures existantes. Ne les concurrence pas." },
-  { icon: "🎓", title: "Crée des opportunités", desc: "La demande générée = formation de psychologues gabonais." },
-];
-
-// Uniquement des faits vérifiables : pas de chiffres d'usage tant qu'il n'y a pas de vraies mesures
-const stats = [
-  { display: "24h/24", label: "disponible", sublabel: "7 jours sur 7" },
-  { display: "0", label: "inscription requise", sublabel: "Sans compte" },
-  { display: "Écrit + vocal", label: "à ton rythme", sublabel: "Écris ou parle à YURA" },
-];
-
-// ─── Page principale ──────────────────────────────────────────────────────────
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function HomeClient() {
   return (
-    <main style={{ minHeight: "100vh", background: "#f5f0e8", color: "#1a2e1a", overflowX: "hidden" }}>
+    <main style={{ minHeight: "100dvh", background: C.ivory, color: C.text, overflowX: "hidden" }}>
+      {/* ══ EN-TÊTE ══ */}
+      <header className="home-header">
+        <Link href="/" className="tap-target" style={{ gap: 10, textDecoration: "none", color: C.green }}>
+          <span style={{ width: 30, height: 30, borderRadius: "50%", background: C.green, color: C.ivory, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+            <Icon name="leaf" size={16} />
+          </span>
+          <span style={{ fontFamily: SERIF, fontSize: 22, letterSpacing: "0.02em" }}>YURA</span>
+        </Link>
+        <nav style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Link href="/teleconsultation" className="tap-target home-nav-link">Professionnels</Link>
+          <a href="tel:1300" className="tap-target home-urgent" aria-label="Urgence : appeler le 1300">
+            <Icon name="phone" size={16} />
+            <span className="home-urgent-label">Urgence&nbsp;:</span> 1300
+          </a>
+        </nav>
+      </header>
 
       {/* ══ HERO ══ */}
-      <section style={{ position: "relative", background: "#1a2e1a", overflow: "hidden", minHeight: "100vh", display: "flex", alignItems: "center" }}>
-        <Particles />
+      <section className="home-hero">
+        <div>
+          <h1 style={{ fontFamily: SERIF, fontWeight: 400, fontSize: "clamp(2.6rem, 7vw, 4.6rem)", lineHeight: 1.05, letterSpacing: "-0.02em", color: C.green, margin: 0 }}>
+            Tu peux en parler.
+          </h1>
+          <p style={{ fontSize: "clamp(1.05rem, 2.4vw, 1.25rem)", lineHeight: 1.65, color: C.text, margin: "20px 0 0", maxWidth: 480 }}>
+            YURA est là pour t&apos;écouter, sans jugement. Un espace pour poser ce que tu ressens,
+            et être orienté·e vers un professionnel quand tu en as besoin.
+          </p>
 
-        {/* Kente pattern animé */}
-        <div style={{ position: "absolute", inset: 0, opacity: 0.07, zIndex: 0, animation: "kenteSlide 30s linear infinite" }}>
-          <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="kente" x="0" y="0" width="48" height="48" patternUnits="userSpaceOnUse">
-                <rect x="0" y="0" width="24" height="24" fill="#7fb89a" />
-                <rect x="24" y="24" width="24" height="24" fill="#7fb89a" />
-                <rect x="12" y="12" width="24" height="24" fill="#c9935a" opacity="0.8" />
-                <line x1="0" y1="0" x2="48" y2="48" stroke="white" strokeWidth="0.5" opacity="0.6" />
-                <line x1="48" y1="0" x2="0" y2="48" stroke="white" strokeWidth="0.5" opacity="0.4" />
-              </pattern>
-            </defs>
-            <rect width="200%" height="200%" fill="url(#kente)" />
-          </svg>
-        </div>
-
-        {/* Glow radial */}
-        <div style={{ position: "absolute", top: "40%", left: "30%", width: 600, height: 600, background: "radial-gradient(circle, rgba(74,124,89,0.15) 0%, transparent 70%)", transform: "translate(-50%,-50%)", zIndex: 0, pointerEvents: "none" }} />
-
-        <div style={{ position: "relative", zIndex: 1, maxWidth: 1100, margin: "0 auto", padding: "80px 24px", width: "100%", display: "grid", gridTemplateColumns: "1fr", gap: 48, alignItems: "center" }}
-          className="lg-grid-2col hero-grid">
-
-          {/* Colonne gauche */}
-          <div style={{ animation: "heroFadeIn 0.9s ease-out" }}>
-            {/* Badge */}
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(201,147,90,0.18)", border: "1px solid rgba(201,147,90,0.4)", borderRadius: 100, padding: "6px 16px", marginBottom: 32 }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#e8a84a", animation: "pulse 2s infinite" }} />
-              <span style={{ color: "#e8a84a", fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-                Concours Art Numérique · Gabon 2026
-              </span>
-            </div>
-
-            {/* Logo + titre */}
-            <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 28 }}>
-              <div style={{ position: "relative", flexShrink: 0 }}>
-                <div style={{ position: "absolute", inset: -4, borderRadius: "50%", background: "conic-gradient(from 0deg, #2d5a27, #7fb89a, #c9935a, #4a7c59, #2d5a27)", animation: "spin-slow 8s linear infinite", opacity: 0.6 }} />
-                <div style={{ position: "relative", width: 80, height: 80, borderRadius: "50%", background: "conic-gradient(from 0deg, #2d5a27, #7fb89a, #c9935a, #4a7c59, #2d5a27)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <div style={{ width: 62, height: 62, borderRadius: "50%", background: "#1a2e1a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{ fontFamily: "Georgia,serif", color: "#7fb89a", fontSize: 24, fontWeight: 600 }}>Yu</span>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <h1 style={{ fontFamily: "Georgia,serif", color: "#fff", fontSize: "clamp(3rem,8vw,5.5rem)", lineHeight: 1, letterSpacing: "-0.03em", margin: 0 }}>
-                  YURA
-                </h1>
-                <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, letterSpacing: "0.15em", textTransform: "uppercase", marginTop: 4 }}>
-                  Écouter · Comprendre
-                </p>
-              </div>
-            </div>
-
-            <p style={{ color: "rgba(255,255,255,0.75)", fontSize: "clamp(1rem,2.5vw,1.2rem)", lineHeight: 1.75, maxWidth: 500, marginBottom: 8 }}>
-              L&apos;IA d&apos;écoute émotionnelle gabonaise.
-            </p>
-            <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 15, lineHeight: 1.8, maxWidth: 480, marginBottom: 32 }}>
-              Un pont doux entre toi et les professionnels de santé mentale, ancré dans la culture gabonaise.
-            </p>
-
-            {/* Tags */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 36 }}>
-              {["IA conversationnelle", "Santé mentale", "Culture gabonaise", "Sans compte"].map((tag) => (
-                <span key={tag} style={{ color: "#7fb89a", fontSize: 12, border: "1px solid rgba(127,184,154,0.3)", background: "rgba(127,184,154,0.08)", borderRadius: 100, padding: "4px 12px" }}>
-                  {tag}
-                </span>
-              ))}
-            </div>
-
-            {/* CTAs */}
-            <div className="hero-ctas" style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-              <Link
-                href="/chat"
-                style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#4a7c59", color: "#fff", textDecoration: "none", borderRadius: 16, padding: "14px 28px", fontSize: 15, fontWeight: 600, transition: "all 0.2s", boxShadow: "0 0 24px rgba(74,124,89,0.4)", animation: "ctaPulse 3s ease-in-out infinite" }}
-              >
-                Parler à YURA
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M14 8L2 2l2.5 6L2 14l12-6z" fill="white" /></svg>
-              </Link>
-              <a
-                href="#comment"
-                style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.75)", textDecoration: "none", borderRadius: 16, padding: "14px 28px", fontSize: 15, fontWeight: 500, border: "1px solid rgba(255,255,255,0.15)", transition: "all 0.2s" }}
-              >
-                Comment ça marche →
-              </a>
-              <PwaInstallButton />
-            </div>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 14, marginTop: 32 }}>
+            <Link href="/chat" className="home-cta">
+              Parler à YURA
+              <Icon name="arrow" size={18} />
+            </Link>
           </div>
+          <p style={{ fontSize: 14, color: C.muted, marginTop: 16 }}>Sans compte · Gratuit · 24h/24</p>
 
-          {/* Colonne droite — Chat démo */}
-          <div className="hero-demo-col" style={{ display: "flex", justifyContent: "center", animation: "heroFadeIn 0.9s ease-out 0.3s both" }}>
-            <ChatDemo />
-          </div>
+          <p className="home-badge">
+            <Icon name="leaf" size={14} color={C.green2} />
+            Assistant conversationnel conçu pour le contexte gabonais
+          </p>
         </div>
 
-        {/* Scroll indicator */}
-        <div style={{ position: "absolute", bottom: 32, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, animation: "float 2s ease-in-out infinite" }}>
-          <span style={{ color: "rgba(255,255,255,0.25)", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>Scroll</span>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M3 9l5 5 5-5" stroke="rgba(255,255,255,0.25)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        </div>
+        <ChatPreview />
       </section>
 
-      {/* ══ URGENCE ══ */}
-      <div style={{ background: "#2d5a27", padding: "12px 24px", textAlign: "center" }}>
-        <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 14, margin: 0 }}>
-          🚨 En cas d&apos;urgence, appelle le{" "}
-          <a href="tel:1300" style={{ color: "#7fb89a", fontWeight: 700, textDecoration: "underline" }}>1300</a>
-          {" "}(CHU Libreville) — disponible 24h/24
-        </p>
-      </div>
-
-      {/* ══ STATS ══ */}
-      <section style={{ background: "#1a2e1a", padding: "48px 24px" }}>
-        <div className="stats-grid" style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 2 }}>
-          {stats.map((s, i) => (
-            <Reveal key={i} delay={i * 100}>
-              <div className="stats-item" style={{ textAlign: "center", padding: "24px 16px", borderRight: i < stats.length - 1 ? "1px solid rgba(255,255,255,0.07)" : "none" }}>
-                <div style={{ fontFamily: "Georgia,serif", fontSize: "clamp(2rem,5vw,3rem)", color: "#7fb89a", fontWeight: 300, lineHeight: 1 }}>
-                  {s.display}
-                </div>
-                <p style={{ color: "#fff", fontSize: 13, fontWeight: 600, marginTop: 6, marginBottom: 2 }}>{s.label}</p>
-                <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11 }}>{s.sublabel}</p>
+      {/* ══ CONFIANCE ══ */}
+      <section className="home-section">
+        <div className="home-grid-3">
+          {TRUST.map((t, i) => (
+            <Reveal key={t.title} delay={i * 80}>
+              <div className="home-card">
+                <span className="home-icon"><Icon name={t.icon} /></span>
+                <h3 className="home-card-title">{t.title}</h3>
+                <p className="home-card-text">{t.desc}</p>
               </div>
             </Reveal>
           ))}
         </div>
       </section>
 
-      {/* ══ SHADER VISUEL ══ */}
-      <section style={{ position: "relative", height: 420, overflow: "hidden" }}>
-        <ShaderAnimation />
-        <div style={{
-          position: "absolute", inset: 0, zIndex: 10,
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          background: "linear-gradient(to bottom, rgba(26,46,26,0.55) 0%, transparent 30%, transparent 70%, rgba(245,240,232,0.6) 100%)",
-          pointerEvents: "none",
-        }}>
-          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 14 }}>
-            Une présence 24h/24
-          </p>
-          <h2 style={{
-            fontFamily: "Georgia,serif",
-            fontSize: "clamp(2.2rem,6vw,4.5rem)",
-            color: "#fff",
-            fontWeight: 400,
-            letterSpacing: "-0.03em",
-            textAlign: "center",
-            textShadow: "0 2px 32px rgba(0,0,0,0.6)",
-            lineHeight: 1.1,
-            padding: "0 24px",
-          }}>
-            Tu n&apos;es jamais seul(e).
-          </h2>
-          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 15, marginTop: 16, textShadow: "0 1px 8px rgba(0,0,0,0.8)" }}>
-            YURA écoute. Toujours.
-          </p>
-        </div>
-      </section>
-
-      {/* ══ STEPS ══ */}
-      <section id="comment" className="steps-section" style={{ maxWidth: 1100, margin: "0 auto", padding: "96px 24px" }}>
+      {/* ══ COMMENT YURA PEUT M'AIDER ══ */}
+      <section className="home-section">
         <Reveal>
-          <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#4a7c59", marginBottom: 12 }}>Le parcours</p>
-          <h2 style={{ fontFamily: "Georgia,serif", fontSize: "clamp(1.8rem,4vw,2.8rem)", color: "#1a2e1a", marginBottom: 56, lineHeight: 1.2 }}>
-            Un chemin progressif
-          </h2>
+          <h2 className="home-h2">Comment YURA peut t&apos;aider ?</h2>
+          <p className="home-lead">Choisis ce qui te ressemble le plus, la conversation commence là.</p>
         </Reveal>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
-          {steps.map((step, i) => (
-            <Reveal key={step.num} delay={i * 120}>
-              <div
-                style={{
-                  borderRadius: 20,
-                  border: `1px solid ${step.accent}30`,
-                  background: `${step.accent}06`,
-                  padding: 28,
-                  transition: "all 0.3s ease",
-                  cursor: "default",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.transform = "translateY(-4px)";
-                  (e.currentTarget as HTMLElement).style.boxShadow = `0 12px 32px ${step.accent}20`;
-                  (e.currentTarget as HTMLElement).style.borderColor = `${step.accent}50`;
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-                  (e.currentTarget as HTMLElement).style.boxShadow = "none";
-                  (e.currentTarget as HTMLElement).style.borderColor = `${step.accent}30`;
-                }}
-              >
-                <div style={{ fontFamily: "Georgia,serif", fontSize: 36, fontWeight: 300, color: step.accent, marginBottom: 14 }}>{step.num}</div>
-                <h3 style={{ fontSize: 15, fontWeight: 700, color: "#1a2e1a", marginBottom: 8 }}>{step.title}</h3>
-                <p style={{ fontSize: 14, color: "#4a5a4a", lineHeight: 1.65, marginBottom: 14 }}>{step.desc}</p>
-                <p style={{ fontSize: 12, fontStyle: "italic", color: step.accent, opacity: 0.85 }}>{step.quote}</p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      {/* ══ PILLARS ══ */}
-      <section className="pillars-section" style={{ background: "#fff", padding: "96px 24px" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <Reveal>
-            <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#4a7c59", marginBottom: 12 }}>Fondements</p>
-            <h2 style={{ fontFamily: "Georgia,serif", fontSize: "clamp(1.8rem,4vw,2.8rem)", color: "#1a2e1a", marginBottom: 56 }}>
-              Ce qui rend YURA unique
-            </h2>
-          </Reveal>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
-            {pillars.map((p, i) => (
-              <Reveal key={p.title} delay={i * 80}>
-                <div
-                  style={{ padding: 24, borderRadius: 20, border: "1px solid rgba(26,46,26,0.1)", transition: "all 0.3s ease", cursor: "default" }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.borderColor = "rgba(74,124,89,0.3)";
-                    (e.currentTarget as HTMLElement).style.background = "#f5f0e8";
-                    (e.currentTarget as HTMLElement).style.transform = "translateY(-3px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.borderColor = "rgba(26,46,26,0.1)";
-                    (e.currentTarget as HTMLElement).style.background = "";
-                    (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-                  }}
-                >
-                  <span style={{ fontSize: 32, display: "block", marginBottom: 16 }}>{p.icon}</span>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1a2e1a", marginBottom: 8 }}>{p.title}</h3>
-                  <p style={{ fontSize: 14, color: "#5a6b5a", lineHeight: 1.65 }}>{p.desc}</p>
-                </div>
+        <ul className="home-situations">
+          {SITUATIONS.map((s, i) => (
+            <li key={s.feel}>
+              <Reveal delay={i * 60}>
+                <Link href={chatHref(s.humeur)} className="home-situation">
+                  <span className="home-situation-feel">{s.feel}</span>
+                  <span className="home-situation-help">{s.help}</span>
+                  <span className="home-situation-arrow"><Icon name="arrow" size={18} /></span>
+                </Link>
               </Reveal>
-            ))}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* ══ PARCOURS ══ */}
+      <section className="home-section">
+        <Reveal>
+          <h2 className="home-h2">Comment YURA t&apos;accompagne</h2>
+        </Reveal>
+        <div className="home-grid-3">
+          {JOURNEY.map((j, i) => (
+            <Reveal key={j.num} delay={i * 80}>
+              <div className="home-step">
+                <span style={{ fontFamily: SERIF, fontSize: 40, color: C.warm, lineHeight: 1 }}>{j.num}</span>
+                <h3 className="home-card-title" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
+                  <Icon name={j.icon} size={20} color={C.green2} />
+                  {j.title}
+                </h3>
+                <p className="home-card-text">{j.desc}</p>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      {/* ══ MODE VOCAL ══ */}
+      <section className="home-section">
+        <div className="home-voice">
+          <div className="home-voice-orb" aria-hidden="true">
+            <VoiceOrb mode="listening" getLevel={() => 0} size={180} />
+          </div>
+          <div>
+            <h2 className="home-h2" style={{ color: C.ivory, margin: 0 }}>Ou parle-lui, simplement.</h2>
+            <p style={{ color: "rgba(250,248,243,0.75)", fontSize: 16, lineHeight: 1.7, margin: "12px 0 24px", maxWidth: 440 }}>
+              Quand les mots sont difficiles à écrire, le mode vocal te permet de parler à voix haute.
+              YURA t&apos;écoute et te répond.
+            </p>
+            <Link href="/chat" className="home-cta home-cta-light">
+              <Icon name="mic" size={18} />
+              Essayer le mode vocal
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* ══ CTA FINAL ══ */}
-      <section className="cta-section" style={{ background: "#1a2e1a", padding: "96px 24px", textAlign: "center", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", top: "50%", left: "50%", width: 500, height: 500, background: "radial-gradient(circle, rgba(74,124,89,0.2) 0%, transparent 70%)", transform: "translate(-50%,-50%)", pointerEvents: "none" }} />
+      {/* ══ PROFESSIONNELS ══ */}
+      <section className="home-section">
         <Reveal>
-          <div style={{ position: "relative", maxWidth: 560, margin: "0 auto" }}>
-            <div style={{ position: "relative", width: 64, height: 64, margin: "0 auto 24px" }}>
-              <div style={{ position: "absolute", inset: -4, borderRadius: "50%", background: "conic-gradient(from 0deg, #2d5a27, #7fb89a, #c9935a, #4a7c59, #2d5a27)", animation: "spin-slow 8s linear infinite", opacity: 0.7 }} />
-              <div style={{ position: "relative", width: 64, height: 64, borderRadius: "50%", background: "conic-gradient(from 0deg, #2d5a27, #7fb89a, #c9935a, #4a7c59, #2d5a27)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <div style={{ width: 50, height: 50, borderRadius: "50%", background: "#1a2e1a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontFamily: "Georgia,serif", color: "#7fb89a", fontSize: 18, fontWeight: 600 }}>Yu</span>
-                </div>
-              </div>
+          <div className="home-pro">
+            <span className="home-icon"><Icon name="people" /></span>
+            <div style={{ flex: 1, minWidth: 240 }}>
+              <h2 className="home-h2" style={{ margin: 0 }}>Besoin d&apos;un professionnel ?</h2>
+              <p className="home-lead" style={{ margin: "8px 0 0" }}>
+                Bientôt, YURA pourra te mettre en relation avec des psychologues, psychiatres et
+                thérapeutes. En attendant, elle peut t&apos;aider à faire le point.
+              </p>
             </div>
-            <h2 style={{ fontFamily: "Georgia,serif", fontSize: "clamp(1.8rem,4vw,2.6rem)", color: "#fff", marginBottom: 16 }}>
-              Tu n&apos;es pas seul(e).
-            </h2>
-            <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 16, lineHeight: 1.75, marginBottom: 36 }}>
-              YURA est disponible maintenant. Pas d&apos;inscription, pas de jugement.
-              Juste une écoute sincère, dans ta langue, dans ta culture.
-            </p>
-            <Link
-              href="/chat"
-              style={{ display: "inline-flex", alignItems: "center", gap: 10, background: "#4a7c59", color: "#fff", textDecoration: "none", borderRadius: 18, padding: "16px 36px", fontSize: 16, fontWeight: 600, boxShadow: "0 0 32px rgba(74,124,89,0.5)", animation: "ctaPulse 3s ease-in-out infinite", transition: "background 0.2s" }}
-            >
-              Commencer la conversation
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M14 8L2 2l2.5 6L2 14l12-6z" fill="white" /></svg>
+            <Link href="/teleconsultation" className="home-cta home-cta-outline">
+              Découvrir
+              <Icon name="arrow" size={18} />
             </Link>
-            <p style={{ color: "rgba(255,255,255,0.2)", fontSize: 12, marginTop: 20 }}>
-              Sans compte · Gratuit · Confidentiel
-            </p>
           </div>
         </Reveal>
       </section>
 
-      {/* ══ FOOTER ══ */}
-      <footer style={{ background: "#0f1f0f", padding: "32px 24px", textAlign: "center" }}>
-        <nav style={{ display: "flex", justifyContent: "center", gap: 28, flexWrap: "wrap", marginBottom: 16 }}>
-          {[
-            { href: "/chat", label: "Commencer" },
-            { href: "/teleconsultation", label: "Téléconsultation" },
-            { href: "/about", label: "À propos" },
-            { href: "/privacy", label: "Confidentialité" },
-          ].map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="tap-target"
-              style={{ color: "rgba(255,255,255,0.35)", fontSize: 13, textDecoration: "none", transition: "color 0.2s" }}
-              onMouseEnter={(e) => ((e.target as HTMLElement).style.color = "#7fb89a")}
-              onMouseLeave={(e) => ((e.target as HTMLElement).style.color = "rgba(255,255,255,0.35)")}
-            >
-              {l.label}
-            </Link>
-          ))}
-        </nav>
-        <p style={{ color: "rgba(255,255,255,0.2)", fontSize: 12, margin: 0 }}>
-          YURA — Initiative pour la santé mentale au Gabon ·{" "}
-          <span style={{ color: "#7fb89a" }}>Chambre des Métiers · SING</span>
+      {/* ══ PIED DE PAGE ══ */}
+      <footer className="home-footer">
+        <div className="home-footer-inner">
+          <div>
+            <p style={{ fontFamily: SERIF, fontSize: 24, color: C.ivory, margin: 0 }}>YURA</p>
+            <p style={{ color: "rgba(250,248,243,0.6)", fontSize: 14, margin: "6px 0 16px" }}>
+              Une écoute pour le Gabon.
+            </p>
+            <PwaInstallButton />
+          </div>
+          <nav className="home-footer-links" aria-label="Liens du pied de page">
+            <Link href="/chat" className="tap-target">Parler à YURA</Link>
+            <Link href="/teleconsultation" className="tap-target">Professionnels</Link>
+            <Link href="/about" className="tap-target">À propos</Link>
+            <Link href="/privacy" className="tap-target">Confidentialité</Link>
+            <a href="tel:1300" className="tap-target">Urgence : 1300</a>
+          </nav>
+        </div>
+        <p className="home-footer-note">
+          YURA ne remplace pas un professionnel de santé. En cas de danger immédiat, appelle le 1300.
+          <br />
+          Projet présenté au Concours Art Numérique · Gabon 2026.
         </p>
       </footer>
-
-      {/* ══ CSS global ══ */}
-      <style>{`
-        @keyframes heroFadeIn {
-          from { opacity: 0; transform: translateY(20px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fadeSlide {
-          from { opacity: 0; transform: translateY(6px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes blink {
-          0%, 100% { opacity: 1; } 50% { opacity: 0; }
-        }
-        @keyframes float {
-          0%, 100% { transform: translateX(-50%) translateY(0); }
-          50%       { transform: translateX(-50%) translateY(6px); }
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; } 50% { opacity: 0.3; }
-        }
-        @keyframes spin-slow {
-          from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
-        }
-        @keyframes ctaPulse {
-          0%, 100% { box-shadow: 0 0 24px rgba(74,124,89,0.4); }
-          50%       { box-shadow: 0 0 40px rgba(74,124,89,0.7); }
-        }
-        @keyframes kenteSlide {
-          from { transform: translate(0, 0); }
-          to   { transform: translate(48px, 48px); }
-        }
-        a:hover { opacity: 0.88; }
-      `}</style>
     </main>
   );
 }

@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import HomeClient from "@/components/HomeClient";
 
 export const metadata: Metadata = {
-  title: "YURA — L'IA à l'écoute",
+  title: "YURA — Tu peux en parler",
   description:
-    "YURA est une IA conversationnelle d'écoute émotionnelle, nourrie de la culture gabonaise. Un pont entre toi et les professionnels de santé mentale.",
+    "Un espace confidentiel pour parler de ce que tu ressens, sans jugement et sans compte, et être orienté·e vers un professionnel quand tu en as besoin. Pensé pour le Gabon.",
 };
 
 export default function HomePage() {
