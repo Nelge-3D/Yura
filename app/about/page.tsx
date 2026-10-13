@@ -1,214 +1,114 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Icon, { IconName } from "@/components/site/Icon";
+import SiteHeader from "@/components/site/SiteHeader";
+import SiteFooter from "@/components/site/SiteFooter";
 
 export const metadata: Metadata = {
   title: "À propos — YURA",
-  description: "Qui est YURA ? Notre vision d'une santé mentale accessible et ancrée dans la culture gabonaise.",
+  description: "Qui est YURA ? Notre vision d'une écoute accessible à tous, ancrée dans la culture gabonaise.",
 };
 
+const VALUES: { icon: IconName; title: string; desc: string }[] = [
+  { icon: "leaf", title: "Ancrage culturel", desc: "YURA intègre la culture gabonaise (proverbes, repères, réalités locales) pour créer un espace d'écoute qui vous ressemble." },
+  { icon: "shield", title: "Sans compte", desc: "Aucune inscription ni donnée nominative demandée. L'historique reste sur votre appareil ; les messages sont transmis à Google Gemini pour générer les réponses, sans être conservés par YURA." },
+  { icon: "compass", title: "Un pont vers les professionnels", desc: "YURA ne remplace pas un suivi professionnel. Elle écoute, aide à faire le point et oriente vers des professionnels de santé mentale quand c'est nécessaire." },
+  { icon: "heart", title: "Accessibilité", desc: "Gratuit, sans inscription, sur téléphone comme sur ordinateur, à l'écrit ou à voix haute. Pensé pour le Gabon et l'Afrique centrale." },
+];
+
+// Chiffres retirés tant qu'ils ne sont pas sourcés : ne publier que des données citant leur source
 const TEAM = [
-  { name: "Louis Ngabi", role: "Fondateur & CEO", bio: "Entrepreneur tech engagé pour l'accès aux soins en Afrique centrale." },
+  { initials: "LN", name: "Louis Ngabi", role: "Fondateur & CEO", bio: "Entrepreneur tech engagé pour l'accès aux soins en Afrique centrale." },
 ];
-
-const VALUES = [
-  { icon: "🌿", title: "Ancrage culturel", desc: "YURA intègre la culture gabonaise — langues, proverbes, réalités locales — pour créer un espace d'écoute qui vous ressemble." },
-  { icon: "🔒", title: "Sans compte", desc: "Aucune inscription ni donnée nominative demandée. L'historique reste sur votre appareil ; les messages sont transmis à Google Gemini pour générer les réponses, sans être conservés par YURA." },
-  { icon: "🤝", title: "Pont vers les pros", desc: "YURA n'est pas un substitut au suivi professionnel. Elle accompagne et oriente vers les psychologues et psychiatres partenaires." },
-  { icon: "🌍", title: "Accessibilité", desc: "Gratuit, sans inscription, disponible sur tous les appareils. Pensé pour le Gabon et toute l'Afrique centrale." },
-];
-
-const BG = "#0D1F1A";
-const TEXT = "#D8F3DC";
-const MUTED = "#52796F";
-const ACCENT = "#2D6A4F";
-const DOT = "#52B788";
 
 export default function AboutPage() {
   return (
-    <main
-      style={{
-        minHeight: "100dvh",
-        background: BG,
-        color: TEXT,
-        fontFamily: "var(--font-jakarta, sans-serif)",
-      }}
-    >
-      {/* Nav */}
-      <nav
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "16px 24px",
-          borderBottom: `1px solid ${ACCENT}30`,
-          background: "#0A1A14",
-        }}
-      >
-        <Link href="/" className="tap-target" style={{ color: DOT, fontWeight: 700, fontSize: 18, textDecoration: "none" }}>
-          🌿 YURA
-        </Link>
-        <Link
-          href="/chat"
-          style={{
-            background: ACCENT,
-            color: TEXT,
-            padding: "10px 20px",
-            borderRadius: 12,
-            textDecoration: "none",
-            fontSize: 14,
-            fontWeight: 600,
-          }}
-        >
-          Commencer
-        </Link>
-      </nav>
+    <main style={{ minHeight: "100dvh", background: "#FAF8F3", color: "#18221F", overflowX: "hidden" }}>
+      <SiteHeader />
 
-      {/* Hero */}
-      <section style={{ textAlign: "center", padding: "80px 24px 60px" }}>
-        <div style={{ fontSize: 64, marginBottom: 24 }}>🌿</div>
-        <h1 style={{ fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 700, margin: "0 0 16px", lineHeight: 1.15 }}>
-          La santé mentale,<br />enfin accessible au Gabon
-        </h1>
-        <p style={{ color: "#95C8A8", fontSize: 18, maxWidth: 540, margin: "0 auto", lineHeight: 1.7 }}>
-          YURA est une intelligence artificielle d&apos;écoute émotionnelle, ancrée dans la culture gabonaise.
-          Elle accompagne les personnes vers les professionnels de santé mentale, sans jugement et en toute confidentialité.
+      {/* ══ HERO ══ */}
+      <section className="home-section" style={{ paddingTop: 40 }}>
+        <p className="pro-eyebrow" style={{ background: "#E9F2ED", color: "#477A68" }}>À propos</p>
+        <h1 className="pro-title">Une écoute accessible à tous, au Gabon.</h1>
+        <p className="home-lead" style={{ fontSize: "clamp(1.05rem, 2.4vw, 1.2rem)", color: "#18221F", maxWidth: 640 }}>
+          Beaucoup de personnes traversent des moments difficiles sans personne à qui en parler.
+          YURA leur offre un espace pour poser ce qu&apos;elles ressentent, sans jugement, à toute heure,
+          et les oriente vers des professionnels de santé mentale quand c&apos;est nécessaire.
         </p>
       </section>
 
-      {/* Stats */}
-      <section
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          gap: 24,
-          flexWrap: "wrap",
-          padding: "0 24px 80px",
-        }}
-      >
-        {[
-          { n: "1 / 4", label: "Gabonais souffrent de troubles mentaux sans prise en charge" },
-          { n: "< 10", label: "Psychiatres pour 2,3 millions d'habitants" },
-          { n: "0 €", label: "Coût d'accès à YURA pour les utilisateurs" },
-        ].map((s) => (
-          <div
-            key={s.label}
-            style={{
-              background: `${ACCENT}15`,
-              border: `1px solid ${ACCENT}30`,
-              borderRadius: 20,
-              padding: "28px 32px",
-              textAlign: "center",
-              minWidth: 200,
-              flex: "1 1 200px",
-              maxWidth: 280,
-            }}
-          >
-            <div style={{ fontSize: 40, fontWeight: 800, color: DOT, marginBottom: 8 }}>{s.n}</div>
-            <div style={{ color: MUTED, fontSize: 13, lineHeight: 1.5 }}>{s.label}</div>
+      {/* ══ POURQUOI ══ */}
+      <section className="home-section">
+        <div className="home-pro" style={{ alignItems: "flex-start" }}>
+          <span className="home-icon"><Icon name="chat" /></span>
+          <div style={{ flex: 1, minWidth: 240 }}>
+            <h2 className="home-h2" style={{ margin: 0 }}>Pourquoi YURA ?</h2>
+            <p className="home-lead" style={{ margin: "8px 0 0", maxWidth: 720 }}>
+              Parler de sa santé mentale reste difficile : par peur du regard des autres, faute de
+              professionnels à proximité, ou simplement parce qu&apos;on ne sait pas par où commencer.
+              YURA est une première porte, gratuite et discrète, ouverte jour et nuit.
+            </p>
           </div>
-        ))}
+        </div>
       </section>
 
-      {/* Valeurs */}
-      <section style={{ padding: "0 24px 80px", maxWidth: 860, margin: "0 auto" }}>
-        <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 40, textAlign: "center" }}>
-          Nos valeurs
-        </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
+      {/* ══ VALEURS ══ */}
+      <section className="home-section">
+        <h2 className="home-h2">Nos valeurs</h2>
+        <div className="pro-grid about-values" style={{ marginTop: 24 }}>
           {VALUES.map((v) => (
-            <div
-              key={v.title}
-              style={{
-                background: `${ACCENT}10`,
-                border: `1px solid ${ACCENT}25`,
-                borderRadius: 20,
-                padding: 28,
-              }}
-            >
-              <div style={{ fontSize: 32, marginBottom: 12 }}>{v.icon}</div>
-              <h3 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 10px" }}>{v.title}</h3>
-              <p style={{ color: "#95C8A8", fontSize: 14, lineHeight: 1.65, margin: 0 }}>{v.desc}</p>
+            <div key={v.title} className="home-card">
+              <span className="home-icon"><Icon name={v.icon} /></span>
+              <h3 className="home-card-title">{v.title}</h3>
+              <p className="home-card-text">{v.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Équipe */}
-      <section style={{ padding: "0 24px 80px", maxWidth: 860, margin: "0 auto" }}>
-        <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 40, textAlign: "center" }}>
-          L&apos;équipe
-        </h2>
-        <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 20 }}>
+      {/* ══ ÉQUIPE ══ */}
+      <section className="home-section">
+        <h2 className="home-h2">L&apos;équipe</h2>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 20, marginTop: 24 }}>
           {TEAM.map((m) => (
-            <div
-              key={m.name}
-              style={{
-                background: `${ACCENT}10`,
-                border: `1px solid ${ACCENT}25`,
-                borderRadius: 20,
-                padding: 28,
-                textAlign: "center",
-                minWidth: 220,
-                maxWidth: 300,
-              }}
-            >
-              <div
+            <div key={m.name} className="home-card" style={{ display: "flex", gap: 16, alignItems: "flex-start", maxWidth: 440 }}>
+              <span
+                aria-hidden="true"
                 style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: "50%",
-                  background: `${ACCENT}40`,
-                  margin: "0 auto 16px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 28,
+                  width: 56, height: 56, borderRadius: "50%", background: "#174C3C", color: "#FAF8F3", flexShrink: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontFamily: "var(--font-serif), Georgia, serif", fontSize: 20,
                 }}
               >
-                🧑🏾
+                {m.initials}
+              </span>
+              <div>
+                <h3 className="home-card-title" style={{ margin: "4px 0 2px" }}>{m.name}</h3>
+                <p style={{ color: "#477A68", fontSize: 13, fontWeight: 600, margin: "0 0 8px" }}>{m.role}</p>
+                <p className="home-card-text">{m.bio}</p>
               </div>
-              <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 4px" }}>{m.name}</h3>
-              <p style={{ color: DOT, fontSize: 12, margin: "0 0 12px", fontWeight: 600 }}>{m.role}</p>
-              <p style={{ color: MUTED, fontSize: 13, lineHeight: 1.6, margin: 0 }}>{m.bio}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* CTA */}
-      <section
-        style={{
-          textAlign: "center",
-          padding: "60px 24px 80px",
-          borderTop: `1px solid ${ACCENT}20`,
-        }}
-      >
-        <h2 style={{ fontSize: 26, fontWeight: 700, marginBottom: 16 }}>
-          Prêt(e) à être écouté(e) ?
-        </h2>
-        <p style={{ color: MUTED, marginBottom: 32, fontSize: 15 }}>
-          Aucune inscription. Entièrement gratuit. Confidentiel.
-        </p>
-        <Link
-          href="/chat"
-          style={{
-            display: "inline-block",
-            background: ACCENT,
-            color: TEXT,
-            padding: "16px 40px",
-            borderRadius: 16,
-            textDecoration: "none",
-            fontSize: 16,
-            fontWeight: 700,
-          }}
-        >
-          Parler à YURA
-        </Link>
-        <div style={{ marginTop: 24, display: "flex", gap: 24, justifyContent: "center" }}>
-          <Link href="/privacy" className="tap-target" style={{ color: MUTED, fontSize: 13, textDecoration: "none" }}>Confidentialité</Link>
-          <Link href="/teleconsultation" className="tap-target" style={{ color: MUTED, fontSize: 13, textDecoration: "none" }}>Téléconsultation</Link>
+      {/* ══ APPEL ══ */}
+      <section className="home-section">
+        <div className="home-voice" style={{ justifyContent: "space-between" }}>
+          <div>
+            <h2 className="home-h2" style={{ color: "#FAF8F3", margin: 0 }}>Prêt·e à en parler ?</h2>
+            <p style={{ color: "rgba(250,248,243,0.75)", fontSize: 16, margin: "10px 0 0" }}>
+              Sans compte · Gratuit · 24h/24
+            </p>
+          </div>
+          <Link href="/chat" className="home-cta home-cta-light">
+            Parler à YURA
+            <Icon name="arrow" size={18} />
+          </Link>
         </div>
       </section>
+
+      <SiteFooter />
     </main>
   );
 }

@@ -184,6 +184,15 @@ html { scroll-behavior: smooth; }
 .pro-cta-urgent:hover { background: #B54444; }
 @media (max-width: 480px) { .pro-cta, .pro-cta-urgent { width: 100%; } }
 
+/* Pages À propos / Confidentialité */
+@media (min-width: 1024px) { .about-values { grid-template-columns: repeat(2, 1fr) !important; } }
+.legal-list { display: flex; flex-direction: column; gap: 12px; }
+.legal-item {
+  display: flex; gap: 16px; align-items: flex-start;
+  background: #fff; border: 1px solid rgba(23,76,60,0.1); border-radius: 20px; padding: 20px;
+}
+@media (min-width: 640px) { .legal-item { padding: 24px 28px; gap: 20px; } }
+
 @media (prefers-reduced-motion: reduce) {
   .home-reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
 }
