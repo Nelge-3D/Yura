@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import PwaInstallButton from "@/components/PwaInstallButton";
+import Icon from "@/components/site/Icon";
+import SiteHeader from "@/components/site/SiteHeader";
+import SiteFooter from "@/components/site/SiteFooter";
 
 // L'orbe (WebGL) ne s'affiche que côté navigateur
 const VoiceOrb = dynamic(() => import("@/components/voice/VoiceOrb"), { ssr: false });
@@ -23,28 +25,6 @@ const C = {
 };
 
 const SERIF = "var(--font-serif), Georgia, serif";
-
-// ─── Icônes au trait (remplacent les émojis) ─────────────────────────────────
-
-const ICONS = {
-  leaf: "M5 19c0-8 5-14 14-14 0 9-6 14-14 14Zm0 0 7-7",
-  shield: "M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6l-7-3Z",
-  mic: "M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Zm-6 8a6 6 0 0 0 12 0M12 17v4",
-  chat: "M4 5h16v11H9l-5 4V5Z",
-  heart: "M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10Z",
-  compass: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm3.5-12.5-2 5-5 2 2-5 5-2Z",
-  people: "M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm-6 9a6 6 0 0 1 12 0M16 5a3 3 0 0 1 0 6m2 9a6 6 0 0 0-3-5",
-  phone: "M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1Z",
-  arrow: "M5 12h14m-5-5 5 5-5 5",
-} as const;
-
-function Icon({ name, size = 22, color = "currentColor" }: { name: keyof typeof ICONS; size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d={ICONS[name]} stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 // ─── Apparition douce au défilement ──────────────────────────────────────────
 
@@ -161,22 +141,7 @@ function ChatPreview() {
 export default function HomeClient() {
   return (
     <main style={{ minHeight: "100dvh", background: C.ivory, color: C.text, overflowX: "hidden" }}>
-      {/* ══ EN-TÊTE ══ */}
-      <header className="home-header">
-        <Link href="/" className="tap-target" style={{ gap: 10, textDecoration: "none", color: C.green }}>
-          <span style={{ width: 30, height: 30, borderRadius: "50%", background: C.green, color: C.ivory, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-            <Icon name="leaf" size={16} />
-          </span>
-          <span style={{ fontFamily: SERIF, fontSize: 22, letterSpacing: "0.02em" }}>YURA</span>
-        </Link>
-        <nav style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Link href="/teleconsultation" className="tap-target home-nav-link">Professionnels</Link>
-          <a href="tel:1300" className="tap-target home-urgent" aria-label="Urgence : appeler le 1300">
-            <Icon name="phone" size={16} />
-            <span className="home-urgent-label">Urgence&nbsp;:</span> 1300
-          </a>
-        </nav>
-      </header>
+      <SiteHeader />
 
       {/* ══ HERO ══ */}
       <section className="home-hero">
@@ -303,30 +268,7 @@ export default function HomeClient() {
         </Reveal>
       </section>
 
-      {/* ══ PIED DE PAGE ══ */}
-      <footer className="home-footer">
-        <div className="home-footer-inner">
-          <div>
-            <p style={{ fontFamily: SERIF, fontSize: 24, color: C.ivory, margin: 0 }}>YURA</p>
-            <p style={{ color: "rgba(250,248,243,0.6)", fontSize: 14, margin: "6px 0 16px" }}>
-              Une écoute pour le Gabon.
-            </p>
-            <PwaInstallButton />
-          </div>
-          <nav className="home-footer-links" aria-label="Liens du pied de page">
-            <Link href="/chat" className="tap-target">Parler à YURA</Link>
-            <Link href="/teleconsultation" className="tap-target">Professionnels</Link>
-            <Link href="/about" className="tap-target">À propos</Link>
-            <Link href="/privacy" className="tap-target">Confidentialité</Link>
-            <a href="tel:1300" className="tap-target">Urgence : 1300</a>
-          </nav>
-        </div>
-        <p className="home-footer-note">
-          YURA ne remplace pas un professionnel de santé. En cas de danger immédiat, appelle le 1300.
-          <br />
-          Projet présenté au Concours Art Numérique · Gabon 2026.
-        </p>
-      </footer>
+      <SiteFooter />
     </main>
   );
 }
