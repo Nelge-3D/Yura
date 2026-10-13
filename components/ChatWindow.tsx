@@ -38,7 +38,7 @@ function isReturnMessage(m: ChatMessage): boolean {
 const WELCOME_MESSAGE: ChatMessage = {
   role: "assistant",
   content:
-    "Mbolo ! Je suis YURA 🌿\n\nJe suis là pour t'écouter, sans jugement et en toute confidentialité. Tu n'as pas besoin de t'inscrire.\n\nComment s'est passée ta journée ?",
+    "Mbolo, je suis YURA.\n\nIci, tu peux parler librement, sans jugement et sans avoir à te présenter. Je t'écoute.\n\nComment tu te sens aujourd'hui ?",
   timestamp: Date.now(),
 };
 
@@ -159,14 +159,12 @@ export default function ChatWindow() {
             crise: "une période difficile",
             joy: "un beau moment",
           };
-          const contexte = lastSession ? (EMOTION_CONTEXT[lastSession.etatFin] ?? "quelque chose") : null;
-          const returnContent = savedName
-            ? contexte
-              ? `Bon retour, ${savedName} 🌿 La dernière fois, tu m'avais parlé de ${contexte}. Comment tu vas aujourd'hui ?`
-              : `Bon retour, ${savedName} 🌿 Je suis contente de te retrouver. Comment tu vas aujourd'hui ?`
-            : contexte
-              ? `Bon retour 🌿 La dernière fois, tu m'avais parlé de ${contexte}. Comment tu vas aujourd'hui ?`
-              : "Bon retour 🌿 Je suis contente de te retrouver. Comment tu vas aujourd'hui ?";
+          // Pas de rappel vague (« tu m'avais parlé de quelque chose ») si l'émotion n'est pas parlante
+          const contexte = lastSession ? (EMOTION_CONTEXT[lastSession.etatFin] ?? null) : null;
+          const qui = savedName ? `, ${savedName}` : "";
+          const returnContent = contexte
+            ? `Bon retour${qui}. La dernière fois, tu m'avais parlé de ${contexte}. Comment ça va depuis ?`
+            : `Bon retour${qui}, je suis contente de te retrouver. Comment tu te sens aujourd'hui ?`;
           const returnMsg: ChatMessage = {
             role: "assistant",
             content: returnContent,
@@ -384,7 +382,7 @@ export default function ChatWindow() {
     setShowNamePrompt(false);
     const welcome: ChatMessage = {
       role: "assistant",
-      content: `Mbolo ${trimmed} ! 🌿 Je suis heureuse de te rencontrer. Je suis YURA, ton espace d'écoute confidentiel.\n\nComment s'est passée ta journée ?`,
+      content: `Mbolo ${trimmed}, je suis contente de te rencontrer.\n\nIci, tu peux parler librement, sans jugement. Je t'écoute.\n\nComment tu te sens aujourd'hui ?`,
       timestamp: Date.now(),
     };
     setMessages([welcome]);
