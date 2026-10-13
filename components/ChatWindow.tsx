@@ -26,6 +26,13 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: number;
+  // Message d'accueil « Bon retour » généré à l'ouverture (pas une vraie réponse de YURA)
+  kind?: "return";
+}
+
+// « Bon retour » resté sans réponse (les anciens historiques n'ont pas le marqueur kind)
+function isReturnMessage(m: ChatMessage): boolean {
+  return m.role === "assistant" && (m.kind === "return" || m.content.startsWith("Bon retour"));
 }
 
 const WELCOME_MESSAGE: ChatMessage = {
@@ -130,7 +137,20 @@ export default function ChatWindow() {
     if (savedMessages) {
       try {
         const parsed: ChatMessage[] = JSON.parse(savedMessages);
-        if (parsed.length > 0) {
+        // Retirer les « Bon retour » restés sans réponse en fin d'historique : sinon chaque
+        // ouverture du chat en ajoutait un de plus
+        let restored = parsed;
+        while (restored.length > 0 && isReturnMessage(restored[restored.length - 1])) {
+          restored = restored.slice(0, -1);
+        }
+        // Rien dit la dernière fois : pas de « Bon retour », on reprend simplement l'accueil
+        if (restored.length > 0 && !restored.some((m) => m.role === "user")) {
+          setMessages(restored);
+          setShowMoodPicker(true);
+          setHydrated(true);
+          return;
+        }
+        if (restored.length > 0) {
           const lastSession = getLastSession();
           const EMOTION_CONTEXT: Partial<Record<EtatEmotionnel, string>> = {
             anxieux: "quelque chose qui t'inquiétait",
@@ -151,8 +171,9 @@ export default function ChatWindow() {
             role: "assistant",
             content: returnContent,
             timestamp: Date.now(),
+            kind: "return",
           };
-          setMessages([...parsed, returnMsg]);
+          setMessages([...restored, returnMsg]);
           setHydrated(true);
           return;
         }
