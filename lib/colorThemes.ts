@@ -22,9 +22,11 @@ export interface ColorTheme {
   accentHover: string;
   // Dots / indicateurs
   dotColor: string;
+  // Texte posé sur un fond `accent` (boutons pleins)
+  onAccent: string;
 }
 
-export const THEMES: Record<EtatEmotionnel, ColorTheme> = {
+export const THEMES: Record<EtatEmotionnel, Omit<ColorTheme, "onAccent">> = {
   neutre: {
     id: "neutre",
     label: "Neutre",
@@ -153,23 +155,44 @@ export const THEMES: Record<EtatEmotionnel, ColorTheme> = {
   },
 };
 
+// Thème sombre (option du menu)
 export function getTheme(etat: EtatEmotionnel): ColorTheme {
-  return THEMES[etat] ?? THEMES.neutre;
+  const t = THEMES[etat] ?? THEMES.neutre;
+  return { ...t, onAccent: t.textPrimary };
 }
 
+// Thème clair par défaut : identité ivoire + vert forêt de l'accueil.
+// Chaque émotion garde une teinte propre, mais douce, pour ne jamais agresser.
+const LIGHT: Record<EtatEmotionnel, { accent: string; accentHover: string; bubbleYura: string; bg: string; dot: string }> = {
+  neutre:    { accent: "#174C3C", accentHover: "#1E5D4A", bubbleYura: "#E9F2ED", bg: "#FAF8F3", dot: "#477A68" },
+  calme:     { accent: "#174C3C", accentHover: "#1E5D4A", bubbleYura: "#E9F2ED", bg: "#FAF8F3", dot: "#477A68" },
+  anxieux:   { accent: "#3E5C76", accentHover: "#4A6B87", bubbleYura: "#EAF0F5", bg: "#F8F9F9", dot: "#5B7C99" },
+  triste:    { accent: "#5E5482", accentHover: "#6D6293", bubbleYura: "#EFEDF5", bg: "#F9F8FA", dot: "#8379A8" },
+  en_colere: { accent: "#9A4B2C", accentHover: "#AA5835", bubbleYura: "#F6EBE4", bg: "#FBF7F3", dot: "#C0714D" },
+  joy:       { accent: "#8A6418", accentHover: "#9C7420", bubbleYura: "#F7EFDD", bg: "#FBF8F1", dot: "#D99A62" },
+  crise:     { accent: "#18221F", accentHover: "#2B3632", bubbleYura: "#F1EFEA", bg: "#FAF8F3", dot: "#66736D" },
+};
+
 export function getLightTheme(etat: EtatEmotionnel): ColorTheme {
-  const dark = getTheme(etat);
+  const base = THEMES[etat] ?? THEMES.neutre;
+  const l = LIGHT[etat] ?? LIGHT.neutre;
   return {
-    ...dark,
-    bgMain: "#F7FAF8",
-    bgHeader: "#EDF5F0",
-    bgInput: "#EDF5F0",
-    bubbleYura: "#FFFFFF",
-    bubbleYuraBorder: `${dark.accent}30`,
-    bubbleUser: dark.accent,
-    bubbleUserText: "#FFFFFF",
-    textPrimary: "#1A2E25",
-    textSecondary: "#2D5040",
-    textMuted: "#6B9080",
+    id: base.id,
+    label: base.label,
+    icon: base.icon,
+    bgMain: l.bg,
+    bgHeader: "#FFFFFF",
+    bgInput: "#FFFFFF",
+    bubbleYura: l.bubbleYura,
+    bubbleYuraBorder: l.bubbleYura,
+    bubbleUser: l.accent,
+    bubbleUserText: "#FAF8F3",
+    textPrimary: "#18221F",
+    textSecondary: "#3C4A44",
+    textMuted: "#66736D",
+    accent: l.accent,
+    accentHover: l.accentHover,
+    dotColor: l.dot,
+    onAccent: "#FAF8F3",
   };
 }

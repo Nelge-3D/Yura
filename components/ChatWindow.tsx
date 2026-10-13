@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { getUserName, setUserName, getOrCreateSessionId, clearSession } from "@/lib/uuid";
 import { CrisisLevel } from "@/lib/crisis";
 import { detectEmotion, extractEmotionFromYura, EtatEmotionnel, ExerciceType } from "@/lib/emotionDetector";
@@ -79,7 +80,8 @@ export default function ChatWindow() {
   const [savedTexts, setSavedTexts] = useState<Set<string>>(new Set());
   const [pulsingIdx, setPulsingIdx] = useState<number | null>(null);
   const [shareToast, setShareToast] = useState(false);
-  const [lightMode, setLightMode] = useState(false);
+  // Clair (ivoire) par défaut, comme l'accueil ; le mode sombre reste au menu
+  const [lightMode, setLightMode] = useState(true);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -106,7 +108,7 @@ export default function ChatWindow() {
     }
     setSavedTexts(new Set(getPhrases().map((p) => p.texte)));
     const savedLightMode = localStorage.getItem("yura_light_mode");
-    if (savedLightMode === "1") setLightMode(true);
+    if (savedLightMode === "0") setLightMode(false);
     try {
       if (localStorage.getItem(STORAGE_KEY_VOICE) === "1") setVoiceEnabled(true);
     } catch {
@@ -560,7 +562,26 @@ export default function ChatWindow() {
         }}
       >
         <div className="chat-column flex items-center gap-3">
-        <YuraAvatar size={40} animate />
+        <Link
+          href="/"
+          aria-label="Retour à l'accueil"
+          style={{
+            width: 44,
+            height: 44,
+            marginLeft: -10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "50%",
+            color: theme.textMuted,
+            flexShrink: 0,
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M19 12H5m6-6-6 6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </Link>
+        <YuraAvatar size={36} animate light={lightMode} />
         <div className="flex-1 min-w-0">
           <h2 className="font-semibold text-sm" style={{ color: theme.textPrimary }}>
             YURA
@@ -731,7 +752,7 @@ export default function ChatWindow() {
             left: "50%",
             transform: "translateX(-50%)",
             background: theme.accent,
-            color: theme.textPrimary,
+            color: theme.onAccent,
             padding: "10px 20px",
             borderRadius: 100,
             fontSize: 13,
@@ -779,7 +800,7 @@ export default function ChatWindow() {
                   style={{
                     padding: "8px 16px",
                     background: theme.accent,
-                    color: theme.textPrimary,
+                    color: theme.onAccent,
                     border: "none",
                     borderRadius: 12,
                     fontSize: 14,
@@ -851,7 +872,7 @@ export default function ChatWindow() {
               }}
             >
               {msg.role === "assistant" && (
-                <YuraAvatar size={28} animate={false} />
+                <YuraAvatar size={28} animate={false} light={lightMode} />
               )}
               <div className="chat-bubble flex flex-col gap-1">
                 <div
@@ -915,12 +936,21 @@ export default function ChatWindow() {
                         display: "inline-flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        opacity: savedTexts.has(msg.content) ? 1 : 0.28,
-                        transition: "opacity 0.25s",
+                        color: savedTexts.has(msg.content) ? theme.accent : theme.textMuted,
+                        opacity: savedTexts.has(msg.content) ? 1 : 0.6,
+                        transition: "opacity 0.25s, color 0.25s",
                         animation: pulsingIdx === i ? "heart-pulse 0.65s ease-out" : "none",
                       }}
                     >
-                      {savedTexts.has(msg.content) ? "❤️" : "🤍"}
+                      <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10Z"
+                          fill={savedTexts.has(msg.content) ? "currentColor" : "none"}
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
                     </button>
                   )}
                 </div>
@@ -930,7 +960,7 @@ export default function ChatWindow() {
 
           {isLoading && (
             <div className="flex gap-3 justify-start" style={{ animation: "slideUp 0.3s ease-out" }}>
-              <YuraAvatar size={28} animate={false} />
+              <YuraAvatar size={28} animate={false} light={lightMode} />
               <div
                 style={{
                   padding: "14px 18px",
@@ -1073,7 +1103,7 @@ export default function ChatWindow() {
                 height: 48,
                 borderRadius: 14,
                 background: theme.accent,
-                color: theme.textPrimary,
+                color: theme.onAccent,
                 border: "none",
                 display: "flex",
                 alignItems: "center",
@@ -1102,7 +1132,7 @@ export default function ChatWindow() {
                 height: 48,
                 borderRadius: 14,
                 background: isLoading || !input.trim() ? `${theme.accent}30` : theme.accent,
-                color: theme.textPrimary,
+                color: isLoading || !input.trim() ? theme.textPrimary : theme.onAccent,
                 border: "none",
                 display: "flex",
                 alignItems: "center",

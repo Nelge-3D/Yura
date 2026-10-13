@@ -49,7 +49,7 @@ function Respiration({ onDone, theme }: { onDone: () => void; theme: ColorTheme 
         </p>
         <button
           onClick={onDone}
-          style={{ padding: "10px 28px", background: theme.accent, color: theme.textPrimary, border: "none", borderRadius: 12, fontSize: 14, cursor: "pointer" }}
+          style={{ padding: "10px 28px", background: theme.accent, color: theme.onAccent, border: "none", borderRadius: 12, fontSize: 14, cursor: "pointer" }}
         >
           Continuer
         </button>
@@ -127,7 +127,7 @@ function Ancrage({ onDone, theme }: { onDone: () => void; theme: ColorTheme }) {
         </p>
         <button
           onClick={onDone}
-          style={{ padding: "10px 28px", background: theme.accent, color: theme.textPrimary, border: "none", borderRadius: 12, fontSize: 14, cursor: "pointer" }}
+          style={{ padding: "10px 28px", background: theme.accent, color: theme.onAccent, border: "none", borderRadius: 12, fontSize: 14, cursor: "pointer" }}
         >
           Continuer
         </button>
@@ -232,7 +232,7 @@ function Defusion({ onDone, theme }: { onDone: () => void; theme: ColorTheme }) 
     return (
       <div>
         <p style={{ color: theme.textPrimary, fontSize: 14, lineHeight: 1.6, marginBottom: 12 }}>
-          Écris une pensée qui t'envahit en ce moment.
+          Écris une pensée qui t&apos;envahit en ce moment.
         </p>
         <textarea
           value={thought}
@@ -273,7 +273,7 @@ function Defusion({ onDone, theme }: { onDone: () => void; theme: ColorTheme }) 
         <p style={{ color: theme.textMuted, fontSize: 13, lineHeight: 1.6, marginBottom: 14 }}>
           Remarques-tu la différence ? Tu n&apos;es pas cette pensée — tu l&apos;observes.
         </p>
-        <button onClick={() => setStep(2)} style={{ padding: "10px 28px", background: theme.accent, color: theme.textPrimary, border: "none", borderRadius: 12, fontSize: 14, cursor: "pointer" }}>
+        <button onClick={() => setStep(2)} style={{ padding: "10px 28px", background: theme.accent, color: theme.onAccent, border: "none", borderRadius: 12, fontSize: 14, cursor: "pointer" }}>
           Je vois →
         </button>
       </div>
@@ -290,7 +290,7 @@ function Defusion({ onDone, theme }: { onDone: () => void; theme: ColorTheme }) 
       </p>
       <button
         onClick={onDone}
-        style={{ padding: "10px 28px", background: theme.accent, color: theme.textPrimary, border: "none", borderRadius: 12, fontSize: 14, cursor: "pointer" }}
+        style={{ padding: "10px 28px", background: theme.accent, color: theme.onAccent, border: "none", borderRadius: 12, fontSize: 14, cursor: "pointer" }}
       >
         Continuer
       </button>
