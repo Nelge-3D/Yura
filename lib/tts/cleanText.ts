@@ -23,6 +23,9 @@ const EMERGENCY_NUMBER = new RegExp("(?<![\\d.,])1300(?!\\d|[.,]\\d)", "g");
 // (comme « m'aider ») colle le m au mot suivant et donne bien « mbolo ».
 const MBOLO = /\b(m)bolo\b/gi;
 
+// « YURA » en majuscules est lu comme un sigle (« Y-U-R-A ») : on le donne à lire comme un prénom
+const YURA = /\bYURA\b/gi;
+
 export function cleanTextForSpeech(raw: string): string {
   let text = raw
     .replace(HIDDEN_TAG, " ")
@@ -46,7 +49,8 @@ export function cleanTextForSpeech(raw: string): string {
     .replace(/[ \t]*[—–―][ \t]*/g, ", ")
     .replace(/‑/g, "-")
     .replace(EMERGENCY_NUMBER, "treize cents")
-    .replace(MBOLO, "$1'bolo");
+    .replace(MBOLO, "$1'bolo")
+    .replace(YURA, "Yura");
 
   // Une ligne sans ponctuation finale devient une phrase (pause naturelle à l'oral)
   text = text
