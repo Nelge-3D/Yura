@@ -19,6 +19,10 @@ const EMOJI = new RegExp(
 // 1300 isolé (pas 13000, ni 1300,5, ni 21300)
 const EMERGENCY_NUMBER = new RegExp("(?<![\\d.,])1300(?!\\d|[.,]\\d)", "g");
 
+// « Mbolo » : les voix françaises lisent le M isolé (« M. Bolo »). Écrit « M'bolo », l'élision
+// (comme « m'aider ») colle le m au mot suivant et donne bien « mbolo ».
+const MBOLO = /\b(m)bolo\b/gi;
+
 export function cleanTextForSpeech(raw: string): string {
   let text = raw
     .replace(HIDDEN_TAG, " ")
@@ -41,7 +45,8 @@ export function cleanTextForSpeech(raw: string): string {
     .replace(/…/g, "...")
     .replace(/[ \t]*[—–―][ \t]*/g, ", ")
     .replace(/‑/g, "-")
-    .replace(EMERGENCY_NUMBER, "treize cents");
+    .replace(EMERGENCY_NUMBER, "treize cents")
+    .replace(MBOLO, "$1'bolo");
 
   // Une ligne sans ponctuation finale devient une phrase (pause naturelle à l'oral)
   text = text

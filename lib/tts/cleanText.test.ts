@@ -26,7 +26,7 @@ test("retire une balise entourée d'un bloc de code", () => {
 test("retire les émojis, y compris composés", () => {
   assert.equal(
     cleanTextForSpeech("Mbolo ! Je suis YURA 🌿 💛 👍🏾 ❤️ 👨‍👩‍👧"),
-    "Mbolo! Je suis YURA."
+    "M'bolo! Je suis YURA."
   );
 });
 
@@ -65,6 +65,12 @@ test("lit le numéro d'urgence 1300 « treize cents »", () => {
     "treize cents, SAMU Gabon · 24h/24."
   );
   assert.equal(cleanTextForSpeech("Appelle le 1300."), "Appelle le treize cents.");
+});
+
+test("Mbolo est écrit M'bolo pour ne pas être lu « M. Bolo »", () => {
+  assert.equal(cleanTextForSpeech("Mbolo ! Je suis là."), "M'bolo! Je suis là.");
+  assert.equal(cleanTextForSpeech("Mbolo Louis, contente de te lire"), "M'bolo Louis, contente de te lire.");
+  assert.equal(cleanTextForSpeech("on dit mbolo ici"), "on dit m'bolo ici.");
 });
 
 test("ne touche pas aux autres nombres contenant 1300", () => {
