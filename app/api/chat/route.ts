@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { ChatTurn, generate } from "@/lib/llm/gemini";
 import { detectCrisisLevel } from "@/lib/crisis";
 import { YURA_SYSTEM_PROMPT } from "@/lib/yuraSystemPrompt";
 import knowledgeBase from "@/data/yura-knowledge.json";
@@ -12,8 +12,6 @@ Ne les invente jamais — utilise uniquement ceux listés ici.
 
 ${JSON.stringify(knowledgeBase, null, 2)}
 `;
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,46 +34,35 @@ export async function POST(req: NextRequest) {
 
     const crisisLevel = detectCrisisLevel(lastUserMessage.content);
 
-    // Construire l'historique pour Gemini (format user/model)
-    // Gemini exige que l'historique commence par un message 'user' — on ignore les messages 'model' initiaux
-    const rawHistory = messages
-      .slice(0, -1)
-      .map((m: { role: string; content: string }) => ({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }],
-      }));
-    const firstUserIdx = rawHistory.findIndex((m: { role: string }) => m.role === "user");
-    const history = firstUserIdx >= 0 ? rawHistory.slice(firstUserIdx) : [];
+    // Historique au format user/model. Il doit commencer par un message « user » (on ignore les
+    // messages d'accueil de YURA) et alterner les rôles : les messages consécutifs du même rôle sont fusionnés.
+    const turns: ChatTurn[] = [];
+    for (const m of messages as { role: string; content: string }[]) {
+      const role = m.role === "assistant" ? "model" : "user";
+      if (turns.length === 0 && role === "model") continue;
+      const last = turns[turns.length - 1];
+      if (last && last.role === role) last.text += `\n\n${m.content}`;
+      else turns.push({ role, text: m.content });
+    }
 
     const systemPrompt = userName
       ? `${YURA_SYSTEM_PROMPT}\n\nL'utilisateur s'appelle "${userName}". Utilise son prénom naturellement.\n\n${knowledgeContext}`
       : `${YURA_SYSTEM_PROMPT}\n\n${knowledgeContext}`;
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      systemInstruction: systemPrompt,
-      generationConfig: {
-        maxOutputTokens: 1024,
-        temperature: 0.85,
-      },
-    });
+    const { text, model } = await generate({ system: systemPrompt, turns });
 
-    const chat = model.startChat({ history });
-    const result = await chat.sendMessage(lastUserMessage.content);
-    const text = result.response.text();
-
-    return NextResponse.json({
-      message: text,
-      crisisLevel,
-    });
+    return NextResponse.json(
+      { message: text, crisisLevel },
+      // Modèle effectivement utilisé (Gemma ou secours), pour le diagnostic
+      { headers: { "X-YURA-Model": model } }
+    );
   } catch (error) {
-    console.error("YURA API error:", error);
+    // Jamais le contenu des messages : seulement le type d'erreur
+    console.error("YURA API error:", error instanceof Error ? error.message : "inconnue");
 
-    const message =
-      error instanceof Error && error.message.includes("API_KEY")
-        ? "Clé API invalide. Vérifie ta configuration."
-        : "Je rencontre une petite difficulté technique. Tu peux réessayer ?";
-
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Je rencontre une petite difficulté technique. Tu peux réessayer ?" },
+      { status: 500 }
+    );
   }
 }
