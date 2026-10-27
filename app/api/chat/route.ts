@@ -14,13 +14,18 @@ const FIRST_TOKEN_TIMEOUT_MS = 12_000;
 const TOTAL_TIMEOUT_MS = 60_000;
 
 export async function POST(req: NextRequest) {
-  const { messages, userName } = await req.json();
+  // summary : résumé des échanges anciens (seuls les ~20 derniers messages sont envoyés en entier)
+  const { messages, userName, summary } = (await req.json()) as {
+    messages: { role: string; content: string }[];
+    userName?: string | null;
+    summary?: string;
+  };
 
   if (!process.env.GEMINI_API_KEY) {
     return NextResponse.json({ error: "Configuration manquante." }, { status: 500 });
   }
 
-  const lastUserMessage = (messages as { role: string; content: string }[]).findLast((m) => m.role === "user");
+  const lastUserMessage = messages.findLast((m) => m.role === "user");
   if (!lastUserMessage) {
     return NextResponse.json({ error: "Aucun message" }, { status: 400 });
   }
@@ -30,7 +35,7 @@ export async function POST(req: NextRequest) {
   // Historique au format user/model. Il doit commencer par un message « user » (on ignore les
   // messages d'accueil de YURA) et alterner les rôles : les messages consécutifs du même rôle sont fusionnés.
   const turns: ChatTurn[] = [];
-  for (const m of messages as { role: string; content: string }[]) {
+  for (const m of messages) {
     const role = m.role === "assistant" ? "model" : "user";
     if (turns.length === 0 && role === "model") continue;
     const last = turns[turns.length - 1];
@@ -38,9 +43,11 @@ export async function POST(req: NextRequest) {
     else turns.push({ role, text: m.content });
   }
 
-  const system = userName
-    ? `${YURA_SYSTEM_PROMPT}\n\nL'utilisateur s'appelle "${userName}". Utilise son prénom naturellement.`
-    : YURA_SYSTEM_PROMPT;
+  let system = YURA_SYSTEM_PROMPT;
+  if (userName) system += `\n\nL'utilisateur s'appelle "${userName}". Utilise son prénom naturellement.`;
+  if (summary?.trim()) {
+    system += `\n\n## Plus tôt dans cette conversation (résumé)\n${summary.trim().slice(0, 1500)}\nAppuie-toi dessus naturellement, sans dire que tu as un résumé.`;
+  }
   const llmRequest = { system, turns };
 
   const encoder = new TextEncoder();
@@ -49,6 +56,7 @@ export async function POST(req: NextRequest) {
       const send = (event: Record<string, unknown>) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
       const filter = new VisibleTextFilter();
       let sentAnything = false;
+      let promptTokens: number | null = null;
 
       // Lit le flux d'un modèle. Échoue (pour basculer) si aucun mot n'arrive à temps.
       const run = async (model: string) => {
@@ -58,7 +66,7 @@ export async function POST(req: NextRequest) {
         const firstTimer = setTimeout(() => abort.abort(), FIRST_TOKEN_TIMEOUT_MS);
         const totalTimer = setTimeout(() => abort.abort(), TOTAL_TIMEOUT_MS);
         try {
-          for await (const chunk of streamText(model, llmRequest, abort.signal)) {
+          for await (const chunk of streamText(model, llmRequest, abort.signal, (n) => (promptTokens = n))) {
             clearTimeout(firstTimer);
             const delta = filter.push(chunk);
             if (delta) {
@@ -89,7 +97,7 @@ export async function POST(req: NextRequest) {
 
         const final = filter.end();
         if (!final.text) throw new LlmError(502);
-        send({ type: "done", text: final.text, emotion: final.emotion, exercice: final.exercice, crisisLevel, model });
+        send({ type: "done", text: final.text, emotion: final.emotion, exercice: final.exercice, crisisLevel, model, promptTokens });
       } catch (err) {
         // Jamais le contenu des messages : seulement le type d'erreur
         console.error("YURA API error:", err instanceof Error ? err.message : "inconnue");

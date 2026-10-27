@@ -13,6 +13,7 @@ import { sauvegarderSession, getLastSession } from "@/lib/journal";
 import { sauvegarderPhrase, getPhrases } from "@/lib/phrases";
 import { FeedbackPayload } from "@/lib/feedback";
 import { TtsPlayer, Playback } from "@/lib/tts/player";
+import { messagesToSummarize, recentWindow, SummaryState } from "@/lib/llm/history";
 import YuraAvatar from "@/components/YuraAvatar";
 import JournalModal from "@/components/JournalModal";
 import FeedbackFin from "@/components/FeedbackFin";
@@ -21,6 +22,7 @@ import Onboarding from "@/components/Onboarding";
 const STORAGE_KEY_MESSAGES = "yura_messages";
 const STORAGE_KEY_EMOTION = "yura_emotion";
 const STORAGE_KEY_VOICE = "yura_voice";
+const STORAGE_KEY_SUMMARY = "yura_summary";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -120,6 +122,9 @@ export default function ChatWindow() {
   const theme: ColorTheme = lightMode ? getLightTheme(etat) : getTheme(etat);
 
   const exerciceUsedRef = useRef(false);
+  // Résumé des échanges anciens (longues conversations) ; mis à jour en arrière-plan
+  const summaryRef = useRef<SummaryState | null>(null);
+  const summarizingRef = useRef(false);
   const playerRef = useRef<TtsPlayer | null>(null);
 
   // Garde le ref miroir synchronisé
@@ -146,6 +151,13 @@ export default function ChatWindow() {
       setUserNameState(savedName);
     } else {
       setShowNamePrompt(true);
+    }
+
+    try {
+      const savedSummary = localStorage.getItem(STORAGE_KEY_SUMMARY);
+      if (savedSummary) summaryRef.current = JSON.parse(savedSummary) as SummaryState;
+    } catch {
+      summaryRef.current = null;
     }
 
     const savedEmotion = localStorage.getItem(STORAGE_KEY_EMOTION) as EtatEmotionnel | null;
@@ -340,6 +352,8 @@ export default function ChatWindow() {
     clearSession();
     localStorage.removeItem(STORAGE_KEY_MESSAGES);
     localStorage.removeItem(STORAGE_KEY_EMOTION);
+    localStorage.removeItem(STORAGE_KEY_SUMMARY);
+    summaryRef.current = null;
     setMessages([WELCOME_MESSAGE]);
     setInput("");
     setEtat("neutre");
@@ -423,6 +437,38 @@ export default function ChatWindow() {
     setTimeout(() => setPulsingIdx(null), 700);
   }, [savedTexts]);
 
+  // Résume en arrière-plan les messages sortis de la fenêtre des 20 derniers (par paquets de 6).
+  // Un échec est sans conséquence : on réessaiera au prochain message.
+  const updateSummary = useCallback(async (fullHistory: ChatMessage[]) => {
+    if (summarizingRef.current) return;
+    const pending = messagesToSummarize(fullHistory.filter((m) => !m.streaming), summaryRef.current);
+    if (!pending) return;
+    summarizingRef.current = true;
+    try {
+      const res = await fetch("/api/summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          previous: summaryRef.current?.text,
+          messages: pending.map(({ role, content }) => ({ role, content })),
+        }),
+      });
+      if (!res.ok) return;
+      const { summary } = (await res.json()) as { summary?: string };
+      if (!summary) return;
+      summaryRef.current = { text: summary, upTo: pending[pending.length - 1].timestamp };
+      try {
+        localStorage.setItem(STORAGE_KEY_SUMMARY, JSON.stringify(summaryRef.current));
+      } catch {
+        // stockage indisponible : le résumé reste en mémoire pour cette session
+      }
+    } catch {
+      // réseau : on réessaiera au prochain message
+    } finally {
+      summarizingRef.current = false;
+    }
+  }, []);
+
   // Demande une réponse à YURA en streaming : le texte s'affiche au fil de l'eau.
   // En cas d'échec, la réponse partielle est retirée et « Réessayer » est proposé.
   const requestReply = useCallback(async (
@@ -443,7 +489,9 @@ export default function ChatWindow() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: history.map(({ role, content }) => ({ role, content })),
+          // Longues conversations : 20 derniers messages en entier + résumé des plus anciens
+          messages: recentWindow(history).map(({ role, content }) => ({ role, content })),
+          summary: summaryRef.current?.text,
           userName,
         }),
       });
@@ -500,6 +548,7 @@ export default function ChatWindow() {
         setCrisisLevel(final.crisisLevel);
         updateEtat("crise");
       }
+      void updateSummary([...history, { role: "assistant", content: final.text, timestamp: replyId }]);
       return { id: replyId, content: final.text };
     } catch {
       // Jamais de message d'erreur dans l'historique : on retire la réponse partielle et on propose de réessayer
@@ -509,7 +558,7 @@ export default function ChatWindow() {
     } finally {
       setIsLoading(false);
     }
-  }, [userName, voiceEnabled, speakText, updateEtat]);
+  }, [userName, voiceEnabled, speakText, updateEtat, updateSummary]);
 
   // text : message dicté en mode vocal (sinon le champ de saisie).
   // autoSpeak : en mode vocal, c'est le mode vocal qui gère la lecture.

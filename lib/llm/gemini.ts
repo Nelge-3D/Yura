@@ -33,6 +33,7 @@ export function requestBody(model: string, req: LlmRequest): string {
 
 interface GenerateResponse {
   candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[];
+  usageMetadata?: { promptTokenCount?: number };
 }
 
 export class LlmError extends Error {
@@ -65,7 +66,13 @@ async function generateOnce(model: string, req: LlmRequest, timeoutMs: number): 
 }
 
 // Flux de texte (SSE). Les parties « réflexion » sont ignorées.
-export async function* streamText(model: string, req: LlmRequest, signal: AbortSignal): AsyncGenerator<string> {
+// onUsage reçoit le nombre de tokens d'entrée facturés (system + historique), pour le suivi des quotas.
+export async function* streamText(
+  model: string,
+  req: LlmRequest,
+  signal: AbortSignal,
+  onUsage?: (promptTokens: number) => void
+): AsyncGenerator<string> {
   const res = await fetch(`${API}/${model}:streamGenerateContent?alt=sse`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY ?? "" },
@@ -88,7 +95,9 @@ export async function* streamText(model: string, req: LlmRequest, signal: AbortS
       buffer = buffer.slice(sep + 2);
       const data = event.replace(/^data: ?/, "").trim();
       if (!data) continue;
-      const text = extractText(JSON.parse(data) as GenerateResponse);
+      const parsed = JSON.parse(data) as GenerateResponse;
+      if (parsed.usageMetadata?.promptTokenCount) onUsage?.(parsed.usageMetadata.promptTokenCount);
+      const text = extractText(parsed);
       if (text) yield text;
     }
   }
