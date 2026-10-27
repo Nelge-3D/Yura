@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "YURA — L'IA à l'écoute",
+    name: "YURA, tu peux en parler",
     short_name: "YURA",
     description:
       "IA d'écoute émotionnelle gabonaise. Un pont doux entre toi et les professionnels de santé mentale.",

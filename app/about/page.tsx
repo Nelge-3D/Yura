@@ -5,7 +5,7 @@ import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
 
 export const metadata: Metadata = {
-  title: "À propos — YURA",
+  title: "À propos | YURA",
   description: "Qui est YURA ? Notre vision d'une écoute accessible à tous, ancrée dans la culture gabonaise.",
 };
 

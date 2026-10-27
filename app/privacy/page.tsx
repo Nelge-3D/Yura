@@ -4,7 +4,7 @@ import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
 
 export const metadata: Metadata = {
-  title: "Confidentialité — YURA",
+  title: "Confidentialité | YURA",
   description: "Politique de confidentialité de YURA : sans compte, aucune donnée nominative demandée, et ce qui est transmis à Google Gemini.",
 };
 

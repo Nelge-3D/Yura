@@ -82,7 +82,7 @@ export default function VoiceTester({ currentVoice }: { currentVoice: string | n
   return (
     <main style={{ minHeight: "100dvh", background: "#0f1a14", color: "#e8efe9", padding: "24px 16px" }}>
       <div style={{ maxWidth: 560, margin: "0 auto" }}>
-        <p style={{ fontSize: 12, opacity: 0.6, margin: 0 }}>Page de développement — absente en production</p>
+        <p style={{ fontSize: 12, opacity: 0.6, margin: 0 }}>Page de développement, absente en production</p>
         <h1 style={{ fontSize: 22, margin: "6px 0 4px" }}>Choisir la voix de YURA</h1>
         <p style={{ fontSize: 14, opacity: 0.75, margin: "0 0 16px" }}>
           Voix actuelle (GEMINI_TTS_VOICE) : <strong>{currentVoice ?? "non définie"}</strong>

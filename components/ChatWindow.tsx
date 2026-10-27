@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { getUserName, setUserName, getOrCreateSessionId, clearSession } from "@/lib/uuid";
 import { CrisisLevel } from "@/lib/crisis";
-import { detectEmotion, extractEmotionFromYura, EtatEmotionnel, ExerciceType } from "@/lib/emotionDetector";
+import { detectEmotion, EtatEmotionnel, ExerciceType } from "@/lib/emotionDetector";
 import ExerciceGuide from "@/components/ExerciceGuide";
 import VoiceMode from "@/components/voice/VoiceMode";
 import { getTheme, getLightTheme, ColorTheme } from "@/lib/colorThemes";
@@ -28,6 +28,23 @@ interface ChatMessage {
   timestamp: number;
   // Message d'accueil « Bon retour » généré à l'ouverture (pas une vraie réponse de YURA)
   kind?: "return";
+  // Réponse en cours d'écriture (jamais sauvegardée telle quelle)
+  streaming?: boolean;
+}
+
+// Fin de flux envoyée par /api/chat
+interface ReplyDone {
+  text: string;
+  emotion: EtatEmotionnel | null;
+  exercice: ExerciceType | null;
+  crisisLevel: CrisisLevel;
+}
+
+// Réponse qui a échoué : on garde de quoi réessayer (aucun message d'erreur n'est sauvegardé)
+interface FailedReply {
+  history: ChatMessage[];
+  autoSpeak: boolean;
+  clientEmotion: EtatEmotionnel;
 }
 
 // « Bon retour » resté sans réponse (les anciens historiques n'ont pas le marqueur kind)
@@ -83,6 +100,7 @@ export default function ChatWindow() {
   const [activeExercice, setActiveExercice] = useState<ExerciceType | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
+  const [failedReply, setFailedReply] = useState<FailedReply | null>(null);
   const [feedbackDone, setFeedbackDone] = useState(false);
   const [savedTexts, setSavedTexts] = useState<Set<string>>(new Set());
   const [pulsingIdx, setPulsingIdx] = useState<number | null>(null);
@@ -188,7 +206,9 @@ export default function ChatWindow() {
   // Sauvegarde des messages et de l'émotion
   useEffect(() => {
     if (!hydrated || messages.length === 0) return;
-    localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(messages.slice(-40)));
+    // Une réponse en cours d'écriture n'est pas sauvegardée (elle le sera une fois terminée)
+    const stable = messages.filter((m) => !m.streaming);
+    localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(stable.slice(-40)));
     // Proposer le feedback après 5 messages utilisateur
     const userCount = messages.filter((m) => m.role === "user").length;
     if (userCount >= 5 && !feedbackDone && !showFeedback) {
@@ -339,7 +359,7 @@ export default function ChatWindow() {
       const time = formatTime(m.timestamp);
       return `[${time}] ${who} : ${m.content}`;
     });
-    const text = `Résumé de session YURA — ${new Date().toLocaleDateString("fr-FR")}\n\n${lines.join("\n\n")}`;
+    const text = `Résumé de session YURA du ${new Date().toLocaleDateString("fr-FR")}\n\n${lines.join("\n\n")}`;
 
     if (navigator.share) {
       await navigator.share({ title: "Ma session YURA", text }).catch(() => null);
@@ -403,6 +423,94 @@ export default function ChatWindow() {
     setTimeout(() => setPulsingIdx(null), 700);
   }, [savedTexts]);
 
+  // Demande une réponse à YURA en streaming : le texte s'affiche au fil de l'eau.
+  // En cas d'échec, la réponse partielle est retirée et « Réessayer » est proposé.
+  const requestReply = useCallback(async (
+    history: ChatMessage[],
+    autoSpeak: boolean,
+    clientEmotion: EtatEmotionnel
+  ): Promise<{ id: number; content: string } | null> => {
+    setIsLoading(true);
+    setFailedReply(null);
+    // Toujours postérieur au dernier message : l'identifiant ne doit jamais coïncider avec celui
+    // du message de l'utilisateur (créé dans la même milliseconde), sinon le retirer en cas d'échec l'effacerait aussi
+    const replyId = Math.max(Date.now(), (history[history.length - 1]?.timestamp ?? 0) + 1);
+    let shown = "";
+    let started = false;
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: history.map(({ role, content }) => ({ role, content })),
+          userName,
+        }),
+      });
+      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let done: ReplyDone | null = null;
+      for (;;) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        buffer += decoder.decode(chunk.value, { stream: true });
+        let nl: number;
+        while ((nl = buffer.indexOf("\n")) >= 0) {
+          const line = buffer.slice(0, nl).trim();
+          buffer = buffer.slice(nl + 1);
+          if (!line) continue;
+          const event = JSON.parse(line) as { type: string } & Partial<ReplyDone>;
+          if (event.type === "delta" && event.text) {
+            shown += event.text;
+            const current = shown;
+            if (!started) {
+              started = true;
+              setIsLoading(false);
+              setMessages((prev) => [...prev, { role: "assistant", content: current, timestamp: replyId, streaming: true }]);
+            } else {
+              setMessages((prev) => prev.map((m) => (m.timestamp === replyId ? { ...m, content: current } : m)));
+            }
+          } else if (event.type === "done") {
+            done = event as ReplyDone;
+          } else if (event.type === "error") {
+            throw new Error("stream");
+          }
+        }
+      }
+      if (!done) throw new Error("incomplete");
+      const final = done;
+
+      setMessages((prev) =>
+        started
+          ? prev.map((m) => (m.timestamp === replyId ? { role: "assistant", content: final.text, timestamp: replyId } : m))
+          : [...prev, { role: "assistant", content: final.text, timestamp: replyId }]
+      );
+
+      const finalEmotion = final.emotion ?? clientEmotion;
+      if (finalEmotion !== "neutre") updateEtat(finalEmotion);
+      if (final.exercice && !exerciceUsedRef.current) {
+        exerciceUsedRef.current = true;
+        setActiveExercice(final.exercice);
+      }
+      if (autoSpeak && voiceEnabled) speakText(final.text, replyId);
+      if (final.crisisLevel && final.crisisLevel !== "none") {
+        setCrisisLevel(final.crisisLevel);
+        updateEtat("crise");
+      }
+      return { id: replyId, content: final.text };
+    } catch {
+      // Jamais de message d'erreur dans l'historique : on retire la réponse partielle et on propose de réessayer
+      setMessages((prev) => prev.filter((m) => m.timestamp !== replyId));
+      setFailedReply({ history, autoSpeak, clientEmotion });
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userName, voiceEnabled, speakText, updateEtat]);
+
   // text : message dicté en mode vocal (sinon le champ de saisie).
   // autoSpeak : en mode vocal, c'est le mode vocal qui gère la lecture.
   // Renvoie la réponse de YURA (ou null en cas d'erreur).
@@ -433,59 +541,19 @@ export default function ChatWindow() {
 
     setMessages(newMessages);
     setInput("");
-    setIsLoading(true);
     setCrisisLevel("none");
     if (inputRef.current) inputRef.current.style.height = "auto";
 
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages, userName }),
-      });
+    const reply = await requestReply(newMessages, autoSpeak, clientEmotion);
+    // En mode vocal, ne pas faire surgir le clavier derrière l'écran vocal
+    if (autoSpeak) setTimeout(() => inputRef.current?.focus(), 50);
+    return reply;
+  }, [input, isLoading, messages, voiceEnabled, stopSpeaking, unlockAudio, updateEtat, requestReply]);
 
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-
-      const { text: cleanText, emotion: yuraEmotion, exercice } = extractEmotionFromYura(data.message);
-
-      const finalEmotion = yuraEmotion ?? clientEmotion;
-      if (finalEmotion !== "neutre") updateEtat(finalEmotion);
-
-      if (exercice && !exerciceUsedRef.current) {
-        exerciceUsedRef.current = true;
-        setActiveExercice(exercice);
-      }
-
-      const replyId = Date.now();
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: cleanText, timestamp: replyId },
-      ]);
-
-      if (autoSpeak && voiceEnabled) speakText(cleanText, replyId);
-
-      if (data.crisisLevel !== "none") {
-        setCrisisLevel(data.crisisLevel);
-        updateEtat("crise");
-      }
-      return { id: replyId, content: cleanText };
-    } catch (err) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : "Je suis désolée, une petite erreur s'est produite. Tu peux réessayer ?";
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: msg, timestamp: Date.now() },
-      ]);
-      return null;
-    } finally {
-      setIsLoading(false);
-      // En mode vocal, ne pas faire surgir le clavier derrière l'écran vocal
-      if (autoSpeak) setTimeout(() => inputRef.current?.focus(), 50);
-    }
-  }, [input, isLoading, messages, userName, voiceEnabled, stopSpeaking, unlockAudio, speakText, updateEtat]);
+  const retryReply = useCallback(() => {
+    if (!failedReply || isLoading) return;
+    void requestReply(failedReply.history, failedReply.autoSpeak, failedReply.clientEmotion);
+  }, [failedReply, isLoading, requestReply]);
 
   // Ouvert par un clic : ce geste débloque l'audio (iOS) et l'analyse du son pour l'orbe
   const openVoiceMode = useCallback(() => {
@@ -548,7 +616,7 @@ export default function ChatWindow() {
                 marginTop: 2,
               }}
             >
-              📞 1300 — SAMU Gabon · 24h/24
+              📞 1300 · SAMU Gabon · 24h/24
             </a>
           </div>
           <button
@@ -1042,6 +1110,45 @@ export default function ChatWindow() {
           </div>
         );
       })()}
+
+      {/* Échec de réponse : rien n'est sauvegardé, on propose de réessayer */}
+      {failedReply && !isLoading && (
+        <div className="chat-column" style={{ padding: "0 16px 8px" }}>
+          <div
+            role="alert"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              padding: "8px 8px 8px 16px",
+              borderRadius: 16,
+              background: `${theme.accent}12`,
+              border: `1px solid ${theme.accent}30`,
+              color: theme.textSecondary,
+              fontSize: 14,
+            }}
+          >
+            <span>YURA n&apos;a pas pu répondre.</span>
+            <button
+              onClick={retryReply}
+              style={{
+                minHeight: 44,
+                padding: "0 18px",
+                borderRadius: 12,
+                border: "none",
+                background: theme.accent,
+                color: theme.onAccent,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Réessayer
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Input */}
       <div

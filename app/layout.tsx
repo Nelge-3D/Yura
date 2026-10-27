@@ -18,7 +18,7 @@ const serif = DM_Serif_Display({
 });
 
 export const metadata: Metadata = {
-  title: "YURA — L'IA à l'écoute",
+  title: "YURA, tu peux en parler",
   description:
     "IA conversationnelle à but thérapeutique, nourrie de la culture gabonaise. Un pont entre toi et les professionnels de santé mentale.",
   appleWebApp: {

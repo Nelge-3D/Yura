@@ -5,7 +5,7 @@ import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
 
 export const metadata: Metadata = {
-  title: "Professionnels — YURA",
+  title: "Professionnels | YURA",
   description:
     "Bientôt, YURA pourra te mettre en relation avec des psychologues, psychiatres et thérapeutes. En attendant, YURA t'écoute dès aujourd'hui.",
 };

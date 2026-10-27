@@ -2,7 +2,7 @@ import ChatWindow from "@/components/ChatWindow";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "YURA — Conversation",
+  title: "Conversation avec YURA",
   description: "Ton espace d'écoute confidentiel",
 };
 

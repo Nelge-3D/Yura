@@ -137,23 +137,19 @@ export function extractEmotionFromYura(raw: string): {
     "calme", "anxieux", "triste", "en_colere", "joy", "crise", "neutre",
   ];
 
-  // Extraire le bloc exercice (n'importe où après le texte)
-  const exMatch = raw.match(/\{"exercice"\s*:\s*"([^"]+)"\}/);
-  const exercice = exMatch && VALID_EXERCICES.includes(exMatch[1] as ExerciceType)
-    ? (exMatch[1] as ExerciceType)
-    : null;
-  const withoutEx = exMatch
-    ? raw.slice(0, exMatch.index) + raw.slice(exMatch.index! + exMatch[0].length)
-    : raw;
+  // Toutes les balises, où qu'elles soient et quels que soient les espaces : {"emotion": "..."} / {"exercice": "..."}
+  const TAG = /\{\s*"(emotion|exercice)"\s*:\s*"([^"]*)"\s*\}/g;
+  let emotion: EtatEmotionnel | null = null;
+  let exercice: ExerciceType | null = null;
+  for (const m of raw.matchAll(TAG)) {
+    if (m[1] === "emotion" && VALID_EMOTIONS.includes(m[2] as EtatEmotionnel)) emotion = m[2] as EtatEmotionnel;
+    if (m[1] === "exercice" && !exercice && VALID_EXERCICES.includes(m[2] as ExerciceType)) exercice = m[2] as ExerciceType;
+  }
 
-  // Extraire l'émotion (toujours en fin de message)
-  const emMatch = withoutEx.match(/\{"emotion"\s*:\s*"([^"]+)"\}\s*$/);
-  const emotion = emMatch && VALID_EMOTIONS.includes(emMatch[1] as EtatEmotionnel)
-    ? (emMatch[1] as EtatEmotionnel)
-    : null;
-  const text = emMatch
-    ? withoutEx.slice(0, emMatch.index).trim()
-    : withoutEx.trim();
+  const text = raw
+    .replace(TAG, "")
+    .replace(/```[a-zA-Z]*/g, "") // blocs de code qui entoureraient les balises
+    .trim();
 
   return { text, emotion, exercice };
 }

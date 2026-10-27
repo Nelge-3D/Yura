@@ -271,7 +271,7 @@ function Defusion({ onDone, theme }: { onDone: () => void; theme: ColorTheme }) 
           </p>
         </div>
         <p style={{ color: theme.textMuted, fontSize: 13, lineHeight: 1.6, marginBottom: 14 }}>
-          Remarques-tu la différence ? Tu n&apos;es pas cette pensée — tu l&apos;observes.
+          Remarques-tu la différence ? Tu n&apos;es pas cette pensée : tu l&apos;observes.
         </p>
         <button onClick={() => setStep(2)} style={{ padding: "10px 28px", background: theme.accent, color: theme.onAccent, border: "none", borderRadius: 12, fontSize: 14, cursor: "pointer" }}>
           Je vois →
@@ -286,7 +286,7 @@ function Defusion({ onDone, theme }: { onDone: () => void; theme: ColorTheme }) 
       <p style={{ color: theme.textPrimary, fontSize: 14, lineHeight: 1.75, marginBottom: 16 }}>
         Tu n&apos;ES pas cette pensée. Tu l&apos;observes passer,
         comme un oiseau dans les arbres de la forêt.
-        La forêt reste — les oiseaux passent.
+        La forêt reste, les oiseaux passent.
       </p>
       <button
         onClick={onDone}

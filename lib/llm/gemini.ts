@@ -64,6 +64,36 @@ async function generateOnce(model: string, req: LlmRequest, timeoutMs: number): 
   return text;
 }
 
+// Flux de texte (SSE). Les parties « réflexion » sont ignorées.
+export async function* streamText(model: string, req: LlmRequest, signal: AbortSignal): AsyncGenerator<string> {
+  const res = await fetch(`${API}/${model}:streamGenerateContent?alt=sse`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY ?? "" },
+    body: requestBody(model, req),
+    signal,
+  });
+  if (!res.ok || !res.body) throw new LlmError(res.status);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    // Les événements sont séparés par une ligne vide (en CRLF chez Google)
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+    let sep: number;
+    while ((sep = buffer.indexOf("\n\n")) >= 0) {
+      const event = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      const data = event.replace(/^data: ?/, "").trim();
+      if (!data) continue;
+      const text = extractText(JSON.parse(data) as GenerateResponse);
+      if (text) yield text;
+    }
+  }
+}
+
 // Essaie le modèle principal ; en cas de quota (429), d'erreur ou de lenteur, bascule sur le secours.
 export async function generate(req: LlmRequest): Promise<{ text: string; model: string }> {
   try {

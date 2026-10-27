@@ -230,7 +230,7 @@ export default function VoiceMode({ player, playbackState, onSend, onClose, show
             minHeight: 44,
           }}
         >
-          📞 En danger ? Appelle le 1300 — SAMU Gabon · 24h/24
+          📞 En danger ? Appelle le 1300 · SAMU Gabon · 24h/24
         </a>
       )}
 
