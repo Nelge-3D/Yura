@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { getOrCreateSessionId } from "@/lib/uuid";
 import { YURA_VOICE_CANDIDATES, GeminiVoice } from "@/lib/tts/voices";
+import { cleanTextForSpeech } from "@/lib/tts/cleanText";
+import { pickFrenchVoice, speakWithWebSpeech } from "@/lib/tts/webSpeech";
 
 const DEFAULT_PHRASE =
   "Mbolo ! Je suis là, prends le temps qu'il te faut. Ce que tu ressens est important.";
@@ -25,7 +27,24 @@ export default function VoiceTester({ currentVoice }: { currentVoice: string | n
     };
   }, []);
 
+  // c) Voix du navigateur (secours, et voix par défaut en niveau gratuit)
+  const [browserVoice, setBrowserVoice] = useState<string | null>(null);
+  const [browserPlaying, setBrowserPlaying] = useState(false);
+  const stopBrowserRef = useRef<(() => void) | null>(null);
+  const playBrowser = () => {
+    if (browserPlaying) {
+      stopBrowserRef.current?.();
+      setBrowserPlaying(false);
+      return;
+    }
+    stopAll();
+    setBrowserVoice(pickFrenchVoice(window.speechSynthesis?.getVoices() ?? [])?.name ?? "aucune voix française");
+    setBrowserPlaying(true);
+    stopBrowserRef.current = speakWithWebSpeech(cleanTextForSpeech(phrase), () => setBrowserPlaying(false));
+  };
+
   const stopAll = () => {
+    stopBrowserRef.current?.();
     audioRef.current?.pause();
     setStatus((s) => {
       const next = { ...s };
@@ -101,6 +120,33 @@ export default function VoiceTester({ currentVoice }: { currentVoice: string | n
           }}
         />
 
+        <h2 style={{ fontSize: 15, margin: "0 0 8px" }}>c) Voix du navigateur (Web Speech)</h2>
+        <div
+          style={{
+            display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 14, marginBottom: 20,
+            background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+          }}
+        >
+          <button
+            onClick={playBrowser}
+            aria-label={browserPlaying ? "Arrêter la voix du navigateur" : "Écouter la voix du navigateur"}
+            style={{
+              width: 48, height: 48, flexShrink: 0, borderRadius: "50%", border: "none",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: browserPlaying ? "#7ab88c" : "rgba(122,184,140,0.3)", color: "#0f1a14", cursor: "pointer",
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d={browserPlaying ? "M6 6h12v12H6z" : "M8 5v14l11-7z"} />
+            </svg>
+          </button>
+          <div>
+            <div style={{ fontWeight: 600 }}>Meilleure voix française de cet appareil</div>
+            <div style={{ fontSize: 13, opacity: 0.7 }}>{browserVoice ?? "Choisie automatiquement (Natural/Online, puis Google, puis fr-FR)"}</div>
+          </div>
+        </div>
+
+        <h2 style={{ fontSize: 15, margin: "0 0 8px" }}>a) Gemini TTS (3 requêtes/min en gratuit)</h2>
         <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 10 }}>
           {YURA_VOICE_CANDIDATES.map(({ voice, description }) => {
             const st = status[voice] ?? "idle";

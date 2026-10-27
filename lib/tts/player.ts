@@ -9,6 +9,7 @@ import { getOrCreateSessionId } from "@/lib/uuid";
 import { cleanTextForSpeech } from "./cleanText";
 import { pcm16ToFloat32, pcmToWav } from "./wav";
 import { isWebSpeechAvailable, speakWithWebSpeech } from "./webSpeech";
+import { takeSentences } from "./sentences";
 
 export type PlaybackState = "loading" | "playing" | "paused";
 
@@ -23,6 +24,23 @@ type Listener = (playback: Playback | null) => void;
 type Engine = "element" | "stream" | "speech";
 
 const MAX_CACHED = 30;
+
+// Fournisseur de voix : "webspeech" (défaut : voix du navigateur, instantanée et gratuite),
+// "auto" (Gemini TTS si configuré, sinon navigateur) ou "gemini". En niveau gratuit, Gemini TTS
+// est limité à 3 requêtes/min et ~10/jour : inutilisable pour une conversation entière.
+export type TtsProvider = "webspeech" | "auto" | "gemini";
+export const TTS_PROVIDER: TtsProvider =
+  (process.env.NEXT_PUBLIC_TTS_PROVIDER as TtsProvider | undefined) ?? "webspeech";
+
+// Lecture au fil de l'eau d'une réponse en cours d'écriture
+export interface SpeechStream {
+  // Texte affiché jusqu'ici : les phrases complètes partent à la lecture
+  push(visibleText: string): void;
+  // Fin du flux : le reste est lu
+  end(finalText: string): void;
+  // Se résout quand tout a été dit (ou que la lecture est arrêtée)
+  done: Promise<void>;
+}
 const SAMPLE_RATE = 24_000;
 // Avance prise avant le premier morceau : absorbe les irrégularités du réseau mobile
 const STREAM_LEAD_S = 0.25;
@@ -38,7 +56,7 @@ export class TtsPlayer {
   private engine: Engine | null = null;
   private stopWebSpeech: (() => void) | null = null;
   // Quota atteint ou TTS non configuré : inutile de réessayer pendant cette session
-  private geminiOff = false;
+  private geminiOff = TTS_PROVIDER === "webspeech";
   private audioUnlocked = false;
   private speechUnlocked = false;
   // Résout la promesse renvoyée par play() quand la lecture se termine ou est arrêtée
@@ -366,6 +384,102 @@ export class TtsPlayer {
       this.finish(token);
     };
     return "played";
+  }
+
+  // Lecture phrase par phrase pendant que la réponse s'écrit : premier son dès la première phrase.
+  streamSpeech(id: number): SpeechStream {
+    this.stop();
+    const token = this.token;
+    const cursor = { offset: 0 };
+    const queue: string[] = [];
+    let ended = false;
+    let running = false;
+    const done = new Promise<void>((resolve) => {
+      this.resolveDone = resolve;
+    });
+    this.set({ id, state: "loading", pausable: false });
+
+    const enqueue = (sentences: string[]) => {
+      for (const sentence of sentences) {
+        const clean = cleanTextForSpeech(sentence);
+        if (clean) queue.push(clean);
+      }
+    };
+
+    const pump = async () => {
+      if (running) return;
+      running = true;
+      try {
+        while (token === this.token) {
+          const sentence = queue.shift();
+          if (sentence === undefined) {
+            if (ended) this.finish(token);
+            break;
+          }
+          await this.speakSentence(token, id, sentence);
+        }
+      } finally {
+        running = false;
+      }
+    };
+
+    return {
+      push: (visibleText) => {
+        if (token !== this.token) return;
+        enqueue(takeSentences(visibleText, cursor));
+        void pump();
+      },
+      end: (finalText) => {
+        if (token !== this.token) return;
+        ended = true;
+        enqueue(takeSentences(finalText, cursor, true));
+        void pump();
+      },
+      done,
+    };
+  }
+
+  // Une phrase : Gemini TTS si disponible, sinon voix du navigateur
+  private async speakSentence(token: number, id: number, text: string): Promise<void> {
+    if (!this.geminiOff) {
+      try {
+        const res = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, uuid: getOrCreateSessionId() }),
+        });
+        if (token !== this.token) return;
+        if (res.ok) {
+          const url = URL.createObjectURL(await res.blob());
+          const played = await this.playUrlUntilEnd(token, id, url);
+          URL.revokeObjectURL(url);
+          if (played || token !== this.token) return;
+        } else if (res.status === 429 || res.status === 503) {
+          this.geminiOff = true;
+        }
+      } catch {
+        // réseau : on passe à la voix du navigateur pour cette phrase
+      }
+    }
+    if (token !== this.token || !isWebSpeechAvailable()) return;
+    await new Promise<void>((resolve) => {
+      this.engine = "speech";
+      this.set({ id, state: "playing", pausable: false });
+      this.stopWebSpeech = speakWithWebSpeech(text, resolve);
+    });
+  }
+
+  private playUrlUntilEnd(token: number, id: number, url: string): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      const audio = this.ensureAudio();
+      audio.src = url;
+      audio.onended = () => resolve(true);
+      audio.onerror = () => resolve(false);
+      this.engine = "element";
+      this.set({ id, state: "playing", pausable: false });
+      audio.play().catch(() => resolve(false));
+      if (token !== this.token) resolve(false);
+    });
   }
 
   pause(): void {

@@ -23,7 +23,8 @@ interface Props {
   player: TtsPlayer;
   // État de la lecture en cours : « loading » pendant que Gemini génère l'audio
   playbackState: PlaybackState | null;
-  onSend: (text: string) => Promise<{ id: number; content: string } | null>;
+  // La réponse est lue phrase par phrase pendant qu'elle s'écrit ; spoken se résout à la fin de la lecture
+  onSend: (text: string) => Promise<{ id: number; content: string; spoken: Promise<void> } | null>;
   onClose: () => void;
   showCrisis: boolean;
 }
@@ -73,11 +74,11 @@ export default function VoiceMode({ player, playbackState, onSend, onClose, show
       }
       setPhase("speaking");
       setTranscript("");
-      await player.play(reply.id, reply.content);
+      await reply.spoken;
       // Si l'utilisateur a mis en pause ou fermé pendant la lecture, on ne relance pas l'écoute
       if (activeRef.current && phaseRef.current === "speaking") listenRef.current();
     },
-    [player, setPhase]
+    [setPhase]
   );
 
   useEffect(() => {
@@ -175,12 +176,11 @@ export default function VoiceMode({ player, playbackState, onSend, onClose, show
   };
 
   // Tant que l'audio se génère, l'orbe reste en mode « réflexion »
+  // La voix démarre pendant que la réponse s'écrit : l'orbe parle dès que le son commence
   const orbMode: OrbMode =
-    phase === "speaking"
-      ? playbackState === "playing"
-        ? "speaking"
-        : "thinking"
-      : phase === "thinking"
+    playbackState === "playing" && (phase === "speaking" || phase === "thinking")
+      ? "speaking"
+      : phase === "speaking" || phase === "thinking"
         ? "thinking"
         : phase === "listening"
           ? "listening"

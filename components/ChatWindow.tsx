@@ -12,7 +12,7 @@ import { logMood } from "@/lib/moodLog";
 import { sauvegarderSession, getLastSession } from "@/lib/journal";
 import { sauvegarderPhrase, getPhrases } from "@/lib/phrases";
 import { FeedbackPayload } from "@/lib/feedback";
-import { TtsPlayer, Playback } from "@/lib/tts/player";
+import { TtsPlayer, Playback, SpeechStream } from "@/lib/tts/player";
 import { messagesToSummarize, recentWindow, SummaryState } from "@/lib/llm/history";
 import YuraAvatar from "@/components/YuraAvatar";
 import JournalModal from "@/components/JournalModal";
@@ -45,8 +45,15 @@ interface ReplyDone {
 // Réponse qui a échoué : on garde de quoi réessayer (aucun message d'erreur n'est sauvegardé)
 interface FailedReply {
   history: ChatMessage[];
-  autoSpeak: boolean;
+  fromVoiceMode: boolean;
   clientEmotion: EtatEmotionnel;
+}
+
+// Réponse de YURA ; spoken se résout quand la lecture à voix haute est terminée
+export interface YuraReply {
+  id: number;
+  content: string;
+  spoken: Promise<void>;
 }
 
 // « Bon retour » resté sans réponse (les anciens historiques n'ont pas le marqueur kind)
@@ -286,10 +293,6 @@ export default function ChatWindow() {
     playerRef.current?.unlock();
   }, []);
 
-  const speakText = useCallback((text: string, id: number) => {
-    void playerRef.current?.play(id, text);
-  }, []);
-
   const handleListen = useCallback((text: string, id: number) => {
     const player = playerRef.current;
     if (!player) return;
@@ -473,9 +476,9 @@ export default function ChatWindow() {
   // En cas d'échec, la réponse partielle est retirée et « Réessayer » est proposé.
   const requestReply = useCallback(async (
     history: ChatMessage[],
-    autoSpeak: boolean,
+    fromVoiceMode: boolean,
     clientEmotion: EtatEmotionnel
-  ): Promise<{ id: number; content: string } | null> => {
+  ): Promise<YuraReply | null> => {
     setIsLoading(true);
     setFailedReply(null);
     // Toujours postérieur au dernier message : l'identifiant ne doit jamais coïncider avec celui
@@ -483,6 +486,10 @@ export default function ChatWindow() {
     const replyId = Math.max(Date.now(), (history[history.length - 1]?.timestamp ?? 0) + 1);
     let shown = "";
     let started = false;
+    // Voix : en mode vocal toujours, dans le chat si la lecture automatique est activée.
+    // Chaque phrase est lue dès qu'elle est complète, pendant que la suite s'écrit.
+    const speak = fromVoiceMode || voiceEnabled;
+    let speech: SpeechStream | null = null;
 
     try {
       const res = await fetch("/api/chat", {
@@ -521,6 +528,8 @@ export default function ChatWindow() {
             } else {
               setMessages((prev) => prev.map((m) => (m.timestamp === replyId ? { ...m, content: current } : m)));
             }
+            if (speak && !speech && playerRef.current) speech = playerRef.current.streamSpeech(replyId);
+            speech?.push(current);
           } else if (event.type === "done") {
             done = event as ReplyDone;
           } else if (event.type === "error") {
@@ -543,36 +552,38 @@ export default function ChatWindow() {
         exerciceUsedRef.current = true;
         setActiveExercice(final.exercice);
       }
-      if (autoSpeak && voiceEnabled) speakText(final.text, replyId);
+      if (speak && !speech && playerRef.current) speech = playerRef.current.streamSpeech(replyId);
+      speech?.end(final.text);
       if (final.crisisLevel && final.crisisLevel !== "none") {
         setCrisisLevel(final.crisisLevel);
         updateEtat("crise");
       }
       void updateSummary([...history, { role: "assistant", content: final.text, timestamp: replyId }]);
-      return { id: replyId, content: final.text };
+      return { id: replyId, content: final.text, spoken: speech?.done ?? Promise.resolve() };
     } catch {
       // Jamais de message d'erreur dans l'historique : on retire la réponse partielle et on propose de réessayer
+      if (speech) playerRef.current?.stop();
       setMessages((prev) => prev.filter((m) => m.timestamp !== replyId));
-      setFailedReply({ history, autoSpeak, clientEmotion });
+      setFailedReply({ history, fromVoiceMode, clientEmotion });
       return null;
     } finally {
       setIsLoading(false);
     }
-  }, [userName, voiceEnabled, speakText, updateEtat, updateSummary]);
+  }, [userName, voiceEnabled, updateEtat, updateSummary]);
 
   // text : message dicté en mode vocal (sinon le champ de saisie).
-  // autoSpeak : en mode vocal, c'est le mode vocal qui gère la lecture.
+  // fromVoiceMode : la réponse est lue à voix haute, et le clavier n'est pas rouvert.
   // Renvoie la réponse de YURA (ou null en cas d'erreur).
   const sendMessage = useCallback(async (
     override?: string,
-    autoSpeak = true
-  ): Promise<{ id: number; content: string } | null> => {
+    fromVoiceMode = false
+  ): Promise<YuraReply | null> => {
     const text = (override ?? input).trim();
     if (!text || isLoading) return null;
 
     // Envoyer coupe la lecture ; ce geste sert aussi à débloquer l'audio (iOS)
     stopSpeaking();
-    if (voiceEnabled) unlockAudio();
+    if (voiceEnabled || fromVoiceMode) unlockAudio();
 
     // Démarre le chrono à la toute première réponse utilisateur
     if (sessionStartRef.current === null) {
@@ -593,15 +604,15 @@ export default function ChatWindow() {
     setCrisisLevel("none");
     if (inputRef.current) inputRef.current.style.height = "auto";
 
-    const reply = await requestReply(newMessages, autoSpeak, clientEmotion);
+    const reply = await requestReply(newMessages, fromVoiceMode, clientEmotion);
     // En mode vocal, ne pas faire surgir le clavier derrière l'écran vocal
-    if (autoSpeak) setTimeout(() => inputRef.current?.focus(), 50);
+    if (!fromVoiceMode) setTimeout(() => inputRef.current?.focus(), 50);
     return reply;
   }, [input, isLoading, messages, voiceEnabled, stopSpeaking, unlockAudio, updateEtat, requestReply]);
 
   const retryReply = useCallback(() => {
     if (!failedReply || isLoading) return;
-    void requestReply(failedReply.history, failedReply.autoSpeak, failedReply.clientEmotion);
+    void requestReply(failedReply.history, failedReply.fromVoiceMode, failedReply.clientEmotion);
   }, [failedReply, isLoading, requestReply]);
 
   // Ouvert par un clic : ce geste débloque l'audio (iOS) et l'analyse du son pour l'orbe
@@ -614,7 +625,7 @@ export default function ChatWindow() {
     setVoiceMode(true);
   }, []);
 
-  const sendVoiceMessage = useCallback((text: string) => sendMessage(text, false), [sendMessage]);
+  const sendVoiceMessage = useCallback((text: string) => sendMessage(text, true), [sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
