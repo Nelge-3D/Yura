@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
   let system = YURA_SYSTEM_PROMPT;
   if (userName) system += `\n\nL'utilisateur s'appelle "${userName}". Utilise son prénom naturellement.`;
   if (summary?.trim()) {
-    system += `\n\n## Plus tôt dans cette conversation (résumé)\n${summary.trim().slice(0, 1500)}\nAppuie-toi dessus naturellement, sans dire que tu as un résumé.`;
+    system += `\n\n## Ce dont tu te souviens du début de cette conversation\n${summary.trim().slice(0, 1500)}\nTu te souviens réellement de ces éléments (prénom, situation, ce qui a été dit) : si la personne te les demande, réponds en t'appuyant dessus. N'évoque jamais l'existence d'un résumé.`;
   }
   const llmRequest = { system, turns };
 
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: Record<string, unknown>) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
-      const filter = new VisibleTextFilter();
+      let filter = new VisibleTextFilter();
       let sentAnything = false;
       let promptTokens: number | null = null;
 
@@ -85,6 +85,8 @@ export async function POST(req: NextRequest) {
       try {
         try {
           await run(PRIMARY_MODEL);
+          // Réponse vide (seulement de la « réflexion » ou une balise) : on tente aussi le secours
+          if (!sentAnything && !filter.end().text) throw new LlmError(204);
         } catch (err) {
           // Bascule seulement si rien n'a encore été affiché (sinon le texte serait mélangé)
           if (sentAnything || req.signal.aborted) throw err;
@@ -92,6 +94,7 @@ export async function POST(req: NextRequest) {
             `LLM ${PRIMARY_MODEL} indisponible (${err instanceof LlmError ? err.status : err instanceof Error ? err.name : "?"}), bascule sur ${FALLBACK_MODEL}`
           );
           model = FALLBACK_MODEL;
+          filter = new VisibleTextFilter();
           await run(FALLBACK_MODEL);
         }
 
