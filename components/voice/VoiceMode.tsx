@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PlaybackState, TtsPlayer } from "@/lib/tts/player";
 import VoiceOrb, { OrbMode } from "./VoiceOrb";
+import { isRecognitionAvailable, listen } from "@/lib/voice/recognizer";
+import { isBargeIn } from "@/lib/voice/echo";
 
 // Mode vocal plein écran : YURA écoute, répond à voix haute, puis réécoute, sans aucun clic.
 // Les échanges sont ajoutés à la conversation texte comme d'habitude.
@@ -37,10 +39,12 @@ export default function VoiceMode({ player, playbackState, onSend, onClose, show
 
   const phaseRef = useRef<Phase>("listening");
   const activeRef = useRef(true);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  // Arrête l'écoute en cours (prise de parole ou surveillance d'interruption)
+  const stopListenRef = useRef<(() => void) | null>(null);
   const silentRoundsRef = useRef(0);
   const onSendRef = useRef(onSend);
-  const listenRef = useRef<() => void>(() => {});
+  const listenRef = useRef<(initialText?: string) => void>(() => {});
+  const bargeInRef = useRef<(spokenText: string) => void>(() => {});
 
   useEffect(() => {
     onSendRef.current = onSend;
@@ -52,14 +56,8 @@ export default function VoiceMode({ player, playbackState, onSend, onClose, show
   }, []);
 
   const stopRecognition = useCallback(() => {
-    const rec = recognitionRef.current;
-    recognitionRef.current = null;
-    if (rec) {
-      rec.onend = null;
-      rec.onresult = null;
-      rec.onerror = null;
-      rec.abort();
-    }
+    stopListenRef.current?.();
+    stopListenRef.current = null;
   }, []);
 
   const respond = useCallback(
@@ -74,72 +72,74 @@ export default function VoiceMode({ player, playbackState, onSend, onClose, show
       }
       setPhase("speaking");
       setTranscript("");
+      // Pendant que YURA parle, on surveille une prise de parole pour l'interrompre
+      bargeInRef.current(reply.content);
       await reply.spoken;
-      // Si l'utilisateur a mis en pause ou fermé pendant la lecture, on ne relance pas l'écoute
+      // Si l'utilisateur a interrompu, mis en pause ou fermé, on ne relance pas l'écoute
       if (activeRef.current && phaseRef.current === "speaking") listenRef.current();
     },
     [setPhase]
   );
 
   useEffect(() => {
-    listenRef.current = () => {
+    // Prise de parole : envoi automatique après ~1,5 s de silence
+    listenRef.current = (initialText?: string) => {
       if (!activeRef.current) return;
-      const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition;
-      if (!SR) {
+      if (!isRecognitionAvailable()) {
         setPhase("paused");
         setNotice("Ton navigateur ne permet pas la reconnaissance vocale.");
         return;
       }
       stopRecognition();
-      const rec = new SR();
-      rec.lang = "fr-FR";
-      rec.interimResults = true;
-      rec.continuous = false;
-      rec.maxAlternatives = 1;
-
-      let finalText = "";
-      let fatal = false;
-      rec.onresult = (event: SpeechRecognitionEvent) => {
-        let interim = "";
-        finalText = "";
-        for (let i = 0; i < event.results.length; i++) {
-          const r = event.results[i];
-          if (r.isFinal) finalText += r[0].transcript;
-          else interim += r[0].transcript;
-        }
-        setTranscript(`${finalText}${interim}`.trim());
-      };
-      rec.onerror = (event: SpeechRecognitionErrorEvent) => {
-        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-          fatal = true;
-          setPhase("paused");
-          setNotice("Le micro est bloqué. Autorise-le dans ton navigateur pour parler à YURA.");
-        }
-      };
-      rec.onend = () => {
-        recognitionRef.current = null;
-        if (!activeRef.current || fatal || phaseRef.current !== "listening") return;
-        const text = finalText.trim();
-        if (text) {
+      setPhase("listening");
+      setTranscript(initialText ?? "");
+      stopListenRef.current = listen({
+        initialText,
+        onText: setTranscript,
+        onDone: (text) => {
+          stopListenRef.current = null;
           silentRoundsRef.current = 0;
           void respond(text);
-        } else if (++silentRoundsRef.current >= MAX_SILENT_ROUNDS) {
+        },
+        onSilence: () => {
+          stopListenRef.current = null;
+          if (!activeRef.current || phaseRef.current !== "listening") return;
+          if (++silentRoundsRef.current >= MAX_SILENT_ROUNDS) setPhase("paused");
+          else listenRef.current();
+        },
+        onBlocked: () => {
+          stopListenRef.current = null;
           setPhase("paused");
-        } else {
-          listenRef.current();
-        }
-      };
-
-      recognitionRef.current = rec;
-      setPhase("listening");
-      setTranscript("");
-      try {
-        rec.start();
-      } catch {
-        setPhase("paused");
-      }
+          setNotice("Le micro est bloqué. Autorise-le dans ton navigateur pour parler à YURA.");
+        },
+      });
     };
-  }, [respond, setPhase, stopRecognition]);
+
+    // Interruption à la voix : si la personne parle (et que ce n'est pas l'écho de YURA), YURA se tait
+    bargeInRef.current = (spokenText: string) => {
+      if (!activeRef.current || phaseRef.current !== "speaking" || !isRecognitionAvailable()) return;
+      stopRecognition();
+      stopListenRef.current = listen({
+        silenceMs: 60_000,
+        onText: (heard) => {
+          if (phaseRef.current !== "speaking" || !isBargeIn(heard, spokenText)) return;
+          stopRecognition();
+          setPhase("listening");
+          player.stop();
+          listenRef.current(heard);
+        },
+        // Le navigateur arrête parfois d'écouter de lui-même : on relance tant que YURA parle
+        onDone: () => {
+          stopListenRef.current = null;
+          if (phaseRef.current === "speaking") bargeInRef.current(spokenText);
+        },
+        onSilence: () => {
+          stopListenRef.current = null;
+          if (phaseRef.current === "speaking") bargeInRef.current(spokenText);
+        },
+      });
+    };
+  }, [player, respond, setPhase, stopRecognition]);
 
   // Démarrage et nettoyage
   useEffect(() => {

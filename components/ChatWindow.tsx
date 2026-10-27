@@ -14,6 +14,7 @@ import { sauvegarderPhrase, getPhrases } from "@/lib/phrases";
 import { FeedbackPayload } from "@/lib/feedback";
 import { TtsPlayer, Playback, SpeechStream } from "@/lib/tts/player";
 import { messagesToSummarize, recentWindow, SummaryState } from "@/lib/llm/history";
+import { listen } from "@/lib/voice/recognizer";
 import YuraAvatar from "@/components/YuraAvatar";
 import JournalModal from "@/components/JournalModal";
 import FeedbackFin from "@/components/FeedbackFin";
@@ -119,7 +120,9 @@ export default function ChatWindow() {
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  // Dictée en cours (annulation) et envoi différé : sendMessage est défini plus bas
+  const stopDictationRef = useRef<(() => void) | null>(null);
+  const sendMessageRef = useRef<(text: string) => void>(() => {});
   const sessionStartRef = useRef<number | null>(null);
   const etatDebutRef = useRef<EtatEmotionnel>("neutre");
   const sessionSavedRef = useRef(false);
@@ -387,27 +390,35 @@ export default function ChatWindow() {
     }
   }, [messages]);
 
+  // Dictée : le texte s'affiche en direct dans le champ et part tout seul après ~1,5 s de silence.
+  // Appuyer sur le micro pendant que YURA parle l'interrompt.
   const startListening = useCallback(() => {
-    const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition;
-    if (!SR) return;
-    const recognition = new SR();
-    recognition.lang = "fr-FR";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const transcript = event.results[0][0].transcript;
-      setInput(transcript);
-      setIsListening(false);
-    };
-    recognition.onerror = () => setIsListening(false);
-    recognition.onend = () => setIsListening(false);
-    recognitionRef.current = recognition;
-    recognition.start();
+    stopSpeaking();
+    unlockAudio();
+    stopDictationRef.current?.();
+    stopDictationRef.current = listen({
+      onText: (text) => setInput(text),
+      onDone: (text) => {
+        stopDictationRef.current = null;
+        setIsListening(false);
+        sendMessageRef.current(text);
+      },
+      onSilence: () => {
+        stopDictationRef.current = null;
+        setIsListening(false);
+      },
+      onBlocked: () => {
+        stopDictationRef.current = null;
+        setIsListening(false);
+      },
+    });
     setIsListening(true);
-  }, []);
+  }, [stopSpeaking, unlockAudio]);
 
+  // Arrêter la dictée sans envoyer : le texte reste dans le champ
   const stopListening = useCallback(() => {
-    recognitionRef.current?.stop();
+    stopDictationRef.current?.();
+    stopDictationRef.current = null;
     setIsListening(false);
   }, []);
 
@@ -609,6 +620,10 @@ export default function ChatWindow() {
     if (!fromVoiceMode) setTimeout(() => inputRef.current?.focus(), 50);
     return reply;
   }, [input, isLoading, messages, voiceEnabled, stopSpeaking, unlockAudio, updateEtat, requestReply]);
+
+  useEffect(() => {
+    sendMessageRef.current = (text: string) => void sendMessage(text);
+  }, [sendMessage]);
 
   const retryReply = useCallback(() => {
     if (!failedReply || isLoading) return;
